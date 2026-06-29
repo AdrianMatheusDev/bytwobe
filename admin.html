@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Master Admin B2B - Central de Operações Enterprise</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 font-sans min-h-screen antialiased">
+
+    <audio id="somNotificacao" src="https://assets.mixkit.co/active_storage/sfx/2017/2017-84.wav" preload="auto"></audio>
+
+    <header class="bg-gray-800 border-b border-gray-700 sticky top-0 z-40 shadow-xl">
+        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <span class="bg-blue-600 text-white px-2.5 py-1 rounded-md font-black text-xs uppercase tracking-widest shadow-md">TENANT</span>
+                <h1 class="text-base font-bold tracking-tight text-amber-400 font-mono" id="slugDisplay">...</h1>
+            </div>
+            <div class="flex items-center space-x-4">
+                <div class="text-xs text-gray-400 bg-gray-900 px-3 py-1.5 rounded-lg border border-gray-700 flex items-center space-x-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
+                    <span class="font-medium">Painel Conectado</span>
+                </div>
+                <button onclick="logout()" class="text-xs text-red-400 hover:text-red-300 font-semibold bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded-lg transition cursor-pointer">
+                    Sair
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-8 space-y-8">
+        
+        <section class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="bg-gray-800 p-5 rounded-2xl border border-gray-700 shadow-sm">
+                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Faturamento Total</p>
+                <p id="metricaFaturamento" class="text-2xl font-black text-blue-400 mt-1">R$ 0,00</p>
+            </div>
+            <div class="bg-gray-800 p-5 rounded-2xl border border-gray-700 shadow-sm">
+                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Volume de Pedidos</p>
+                <p id="metricaPedidos" class="text-2xl font-black text-emerald-400 mt-1">0</p>
+            </div>
+            <div class="bg-gray-800 p-5 rounded-2xl border border-gray-700 shadow-sm">
+                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Ticket Médio</p>
+                <p id="metricaTicket" class="text-2xl font-black text-purple-400 mt-1">R$ 0,00</p>
+            </div>
+            <div class="bg-gray-800 p-5 rounded-2xl border border-gray-700 shadow-sm">
+                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Configuração Mínimo</p>
+                <p id="metricaMinimo" class="text-2xl font-black text-amber-400 mt-1">R$ 0,00</p>
+            </div>
+        </section>
+
+        <div class="flex space-x-2 border-b border-gray-700">
+            <button onclick="mudarAba('pedidos')" id="btnAbaPedidos" class="py-3 px-5 text-blue-400 border-b-2 border-blue-500 font-bold text-sm cursor-pointer transition">
+                📋 Logística e Pedidos
+            </button>
+            <button onclick="mudarAba('produtos')" id="btnAbaProdutos" class="py-3 px-5 text-gray-400 border-b-2 border-transparent font-medium text-sm cursor-pointer transition hover:text-gray-200">
+                📦 Gerenciar Catálogo
+            </button>
+            <button onclick="mudarAba('config')" id="btnAbaConfig" class="py-3 px-5 text-gray-400 border-b-2 border-transparent font-medium text-sm cursor-pointer transition hover:text-gray-200">
+                ⚙️ Configurações Macro
+            </button>
+        </div>
+
+        <section id="abaPedidos" class="space-y-6">
+            <div id="boxLogisticaMassa" class="bg-gray-800/60 p-4 rounded-xl border border-gray-700 flex flex-wrap gap-4 items-center justify-between hidden">
+                <div>
+                    <h3 class="text-sm font-bold text-gray-200">Cubagem e Otimização de Carga da Distribuidora</h3>
+                    <p class="text-xs text-gray-400">Somatória total do peso das cargas ativas no sistema.</p>
+                </div>
+                <div class="bg-gray-900 px-4 py-2 rounded-lg border border-gray-700 text-center">
+                    <span class="block text-[10px] text-gray-500 font-bold uppercase">Massa Alocada</span>
+                    <span id="logisticaPesoTotal" class="text-sm font-bold text-blue-400 font-mono">0.000 Kg</span>
+                </div>
+            </div>
+
+            <div id="listaPedidosRealtime" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+        </section>
+
+        <section id="abaProdutos" class="space-y-6 hidden">
+            <div class="bg-gray-800 p-6 rounded-2xl border border-gray-700 shadow-xl">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-bold" id="tituloFormProduto">Adicionar Novo Produto ao Catálogo</h3>
+                    <button id="btnCancelarEdicao" class="hidden text-xs text-red-400 hover:text-red-300 font-bold cursor-pointer" onclick="cancelarEdicao()">Cancelar Edição</button>
+                </div>
+                <form id="produtoForm" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 mb-1">Nome do Item</label>
+                        <input type="text" id="prodNome" required class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 mb-1">Preço Unitário (R$)</label>
+                        <input type="number" id="prodPreco" step="0.01" required class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 mb-1">Múltiplo Comercial</label>
+                        <input type="number" id="prodMultiplo" value="1" min="1" required class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 mb-1">Peso Unitário (Kg)</label>
+                        <input type="number" id="prodPeso" step="0.001" value="0.000" required class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 mb-1">Imagem Padrão (URL ou arquivo)</label>
+                        <input type="text" id="prodFotoUrl" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none" placeholder="https://..." value="https://images.unsplash.com/photo-1530587191325-3db32d826c18?w=550">
+                        <input type="file" id="prodFotoArquivo" accept="image/*" class="mt-2 block w-full text-xs text-gray-400 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 mb-1">Embalagem/Descrição Curta</label>
+                        <input type="text" id="prodDesc" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none" placeholder="Ex: Caixa com 100un">
+                    </div>
+                    <div class="md:col-span-3 flex justify-end">
+                        <button type="submit" id="btnSalvarProduto" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-xl font-bold text-sm cursor-pointer">
+                            Salvar no Catálogo
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="bg-gray-800 rounded-2xl border border-gray-700 overflow-hidden shadow-xl">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="bg-gray-700/50 text-xs text-gray-400 font-bold uppercase tracking-wider">
+                            <th class="p-4">Visual</th>
+                            <th class="p-4">Produto</th>
+                            <th class="p-4">Preço</th>
+                            <th class="p-4 text-right">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaProdutos" class="divide-y divide-gray-700 text-sm"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="abaConfig" class="max-w-2xl bg-gray-800 p-6 rounded-2xl border border-gray-700 shadow-xl space-y-6 hidden">
+            <h3 class="text-lg font-bold">Diretrizes de Recursos Corporativos</h3>
+            <form id="configForm" class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 mb-1">Nome de Exibição da Empresa</label>
+                        <input type="text" id="cfgNome" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 mb-1">Estipular Pedido Mínimo (R$)</label>
+                        <input type="number" id="cfgMinimo" step="0.01" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-semibold text-gray-400 mb-1">Linha Telefônica de Suporte (WhatsApp Enterprise)</label>
+                        <input type="text" id="cfgWhatsapp" placeholder="5511999999999" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-semibold text-gray-400 mb-1">URL do Logo da Empresa</label>
+                        <input type="text" id="cfgLogoUrl" placeholder="https://..." class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none">
+                        <input type="file" id="cfgLogoFile" accept="image/*" class="mt-2 block w-full text-xs text-gray-400 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 mb-1">Cor Tema</label>
+                        <input type="color" id="cfgTemaCor" value="#0d9488" class="w-full h-11 bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-semibold text-gray-400 mb-1">Banner ou Imagem de Cabeçalho</label>
+                        <input type="text" id="cfgBannerUrl" placeholder="https://..." class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none">
+                        <input type="file" id="cfgBannerFile" accept="image/*" class="mt-2 block w-full text-xs text-gray-400 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500">
+                    </div>
+                </div>
+
+                <div class="border-t border-gray-700/60 pt-4 space-y-3">
+                    <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wide">Módulos Logísticos e Faturamento Ativos</h4>
+                    
+                    <label class="flex items-center space-x-3 bg-gray-900/50 p-3 rounded-xl border border-gray-700/40 cursor-pointer">
+                        <input type="checkbox" id="cfgUsaNfe" class="rounded bg-gray-900 border-gray-700 text-blue-600 focus:ring-0">
+                        <div>
+                            <span class="text-sm font-semibold block text-gray-200">Faturamento Fiscal Eletrônico (NF-e)</span>
+                            <span class="text-xs text-gray-500 block">Exibe funcionalidade de anexar PDF no pedido.</span>
+                        </div>
+                    </label>
+
+                    <label class="flex items-center space-x-3 bg-gray-900/50 p-3 rounded-xl border border-gray-700/40 cursor-pointer">
+                        <input type="checkbox" id="cfgUsaPix" class="rounded bg-gray-900 border-gray-700 text-blue-600 focus:ring-0">
+                        <div>
+                            <span class="text-sm font-semibold block text-gray-200">Liquidação via PIX Dinâmico</span>
+                            <span class="text-xs text-gray-500 block">Habilita PIX no checkout.</span>
+                        </div>
+                    </label>
+
+                    <label class="flex items-center space-x-3 bg-gray-900/50 p-3 rounded-xl border border-gray-700/40 cursor-pointer">
+                        <input type="checkbox" id="cfgUsaBoleto" class="rounded bg-gray-900 border-gray-700 text-blue-600 focus:ring-0">
+                        <div>
+                            <span class="text-sm font-semibold block text-gray-200">Boleto Bancário Faturado</span>
+                            <span class="text-xs text-gray-500 block">Libera opção de Boleto a prazo.</span>
+                        </div>
+                    </label>
+
+                    <label class="flex items-center space-x-3 bg-gray-900/50 p-3 rounded-xl border border-gray-700/40 cursor-pointer">
+                        <input type="checkbox" id="cfgUsaLogistica" class="rounded bg-gray-900 border-gray-700 text-blue-600 focus:ring-0">
+                        <div>
+                            <span class="text-sm font-semibold block text-gray-200">Cálculo Dinâmico de Romaneio e Massa</span>
+                            <span class="text-xs text-gray-500 block">Soma cubagem para o operador organizar caminhões.</span>
+                        </div>
+                    </label>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 mb-1">Descrição da Empresa</label>
+                    <textarea id="cfgDescricao" rows="3" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none" placeholder="Breve descrição para aparecer no catálogo"></textarea>
+                </div>
+
+                <div class="flex justify-end pt-2">
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-xl font-bold text-sm cursor-pointer">
+                        Salvar Diretrizes
+                    </button>
+                </div>
+            </form>
+        </section>
+    </main>
+
+    <script>
+        const SUPABASE_URL = "https://xohkquwlmdsukxtgeqsg.supabase.co"; 
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhvaGtxdXdsbWRzdWt4dGdlcXNnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1OTAyNzIsImV4cCI6MjA5ODE2NjI3Mn0.cwHkNa19Wn48MzlQINZ0CmMOLqF9-fTelsmlYD9e7zQ"; // <<-- REPLACE this value with your anon key in your local copy
+        const STORAGE_BUCKET = 'imagens-produtos';
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        async function uploadStorageFile(bucket, path, file) {
+            const { data, error } = await supabaseClient.storage
+                .from(bucket)
+                .upload(path, file, {
+                    cacheControl: '3600',
+                    upsert: true,
+                    contentType: file.type || 'application/octet-stream'
+                });
+
+            if (error) {
+                console.error('Storage upload failed:', bucket, path, error);
+                throw error;
+            }
+
+            const { data: urlData, error: urlError } = supabaseClient.storage.from(bucket).getPublicUrl(data.path);
+            if (urlError) {
+                console.error('Failed to get public URL for storage object:', data.path, urlError);
+                throw urlError;
+            }
+            if (!urlData?.publicUrl) {
+                throw new Error('Não foi possível gerar a URL pública do arquivo enviado. Verifique as configurações de bucket do Supabase.');
+            }
+            return urlData.publicUrl;
+        }
+
+        // Warn if the provided SUPABASE_KEY looks expired. This decodes the JWT payload (no network).
+        function isSupabaseKeyExpired(key) {
+            try {
+                if (!key || key.split('.').length < 2) return false;
+                const payload = key.split('.')[1];
+                // base64 url -> base64
+                const b64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+                const json = decodeURIComponent(atob(b64).split('').map(function(c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+                const obj = JSON.parse(json);
+                if (obj.exp && (Date.now() / 1000) > Number(obj.exp)) return true;
+            } catch (e) {
+                // ignore parse errors
+            }
+            return false;
+        }
+
+        if (isSupabaseKeyExpired(SUPABASE_KEY)) {
+            alert('Atenção: a chave anon do Supabase parece expirada. Gere uma nova anon key no painel do Supabase e atualize a variável SUPABASE_KEY em admin.html.');
+        }
+
+        const urlParams = new URLSearchParams(window.location.search);
+        function parseSlugFromUrl() {
+            const slugFromEmpresa = urlParams.get('empresa');
+            if (slugFromEmpresa) return slugFromEmpresa;
+            const raw = window.location.search.replace(/^\?/, '');
+            if (raw && !raw.includes('=')) return raw;
+            return null;
+        }
+
+        let slugActive = parseSlugFromUrl() || localStorage.getItem('vendedor_slug');
+
+        if (!slugActive || slugActive === 'null' || slugActive.trim() === '') {
+            slugActive = 'distribuidora-padrao';
+        } else {
+            localStorage.setItem('vendedor_slug', slugActive);
+        }
+
+        let configVendedor = { usa_nfe: true, usa_pix: true, usa_boleto: true, usa_logistica: true };
+        let editandoProdutoId = null; // Variável global para controlar se estamos Inserindo ou Editando um produto
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            document.getElementById('slugDisplay').innerText = slugActive.toUpperCase();
+            
+            await carregarConfiguracoes();
+            await carregarProdutos();
+            await carregarPedidosEBI();
+            configurarRealtime();
+        });
+
+        function mudarAba(aba) {
+            document.getElementById('abaPedidos').classList.add('hidden');
+            document.getElementById('abaProdutos').classList.add('hidden');
+            document.getElementById('abaConfig').classList.add('hidden');
+
+            document.getElementById('btnAbaPedidos').className = "py-3 px-5 text-gray-400 border-b-2 border-transparent font-medium text-sm cursor-pointer transition hover:text-gray-200";
+            document.getElementById('btnAbaProdutos').className = "py-3 px-5 text-gray-400 border-b-2 border-transparent font-medium text-sm cursor-pointer transition hover:text-gray-200";
+            document.getElementById('btnAbaConfig').className = "py-3 px-5 text-gray-400 border-b-2 border-transparent font-medium text-sm cursor-pointer transition hover:text-gray-200";
+
+            if (aba === 'pedidos') {
+                document.getElementById('abaPedidos').classList.remove('hidden');
+                document.getElementById('btnAbaPedidos').className = "py-3 px-5 text-blue-400 border-b-2 border-blue-500 font-bold text-sm cursor-pointer transition";
+            } else if (aba === 'produtos') {
+                document.getElementById('abaProdutos').classList.remove('hidden');
+                document.getElementById('btnAbaProdutos').className = "py-3 px-5 text-blue-400 border-b-2 border-blue-500 font-bold text-sm cursor-pointer transition";
+            } else if (aba === 'config') {
+                document.getElementById('abaConfig').classList.remove('hidden');
+                document.getElementById('btnAbaConfig').className = "py-3 px-5 text-blue-400 border-b-2 border-blue-500 font-bold text-sm cursor-pointer transition";
+            }
+        }
+
+        async function verificarSessaoInvalida(error) {
+            if (error && (error.status === 401 || error.message?.toLowerCase().includes('jwt'))) {
+                alert("Sessão expirada ou inválida. Por favor, faça login novamente.");
+                await supabaseClient.auth.signOut();
+                window.location.href = 'login.html';
+                return true;
+            }
+            return false;
+        }
+
+        function configurarRealtime() {
+            supabaseClient
+                .channel('pedidos-realtime')
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pedidos', filter: `slug=eq.${slugActive}` }, payload => {
+                    const som = document.getElementById('somNotificacao');
+                    if (som) {
+                        som.play().catch(e => console.log("Áudio bloqueado pelo navegador:", e));
+                    }
+                    carregarPedidosEBI();
+                })
+                .subscribe();
+        }
+
+        // ========================== PEDIDOS E LOGÍSTICA ==========================
+        async function carregarPedidosEBI() {
+            const lista = document.getElementById('listaPedidosRealtime');
+            lista.innerHTML = '<p class="text-gray-400 py-4 text-sm col-span-2 text-center">Sincronizando fluxo transacional...</p>';
+
+            try {
+                const { data, error } = await supabaseClient
+                    .from('pedidos')
+                    .select('*')
+                    .eq('slug', slugActive)
+                    .order('id', { ascending: false });
+
+                if (error) {
+                    if (await verificarSessaoInvalida(error)) return;
+                    throw error;
+                }
+
+                if (!data || data.length === 0) {
+                    lista.innerHTML = '<p class="text-gray-500 py-4 text-sm col-span-2 text-center">Nenhum pedido recebido.</p>';
+                    atualizarMetricasCard(0, 0, 0);
+                    return;
+                }
+
+                lista.innerHTML = '';
+                let faturamentoAcumulado = 0;
+                let pedidosNaoCancelados = 0;
+                let pesoLogisticaTotal = 0;
+
+                const anexosPorPedido = {};
+                if (data.length > 0) {
+                    const { data: anexosData } = await supabaseClient.from('pedido_anexos').select('*').in('pedido_id', data.map(p => p.id));
+                    (anexosData || []).forEach(anexo => {
+                        if (!anexosPorPedido[anexo.pedido_id]) anexosPorPedido[anexo.pedido_id] = [];
+                        anexosPorPedido[anexo.pedido_id].push(anexo);
+                    });
+                }
+
+                data.forEach(p => {
+                    if (p.status !== 'Cancelado') {
+                        faturamentoAcumulado += parseFloat(p.total || 0);
+                        pedidosNaoCancelados++;
+                        pesoLogisticaTotal += parseFloat(p.peso_total_kg || 0);
+                    }
+
+                    let itensHtml = '';
+                    if (Array.isArray(p.itens)) {
+                        itensHtml = p.itens.map(i => `
+                            <div class="flex justify-between items-center text-xs text-gray-400 py-1 border-b border-gray-800/40">
+                                <span>${i.nome} <strong class="text-gray-200">x${i.qtd}</strong></span>
+                                <span class="font-mono">R$ ${(i.preco * i.qtd).toFixed(2)}</span>
+                            </div>
+                        `).join('');
+                    }
+
+                    // AÇÕES FINANCEIRAS
+                    let moduloFinanceiroHTML = '';
+                    if (p.status === 'Pendente') {
+                        if (p.forma_pagamento === 'Pix' && configVendedor.usa_pix) {
+                            moduloFinanceiroHTML = `<button onclick="atualizarStatusPedido(${p.id}, 'Aprovado')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] py-1.5 rounded-lg transition-all cursor-pointer">Confirmar Recebimento Pix</button>`;
+                        } else if (p.forma_pagamento === 'Boleto' && configVendedor.usa_boleto) {
+                            moduloFinanceiroHTML = `<button onclick="atualizarStatusPedido(${p.id}, 'Aprovado')" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold text-[11px] py-1.5 rounded-lg transition-all cursor-pointer">Aprovar Crédito (Boleto)</button>`;
+                        }
+                    }
+
+                    const anexosPedido = anexosPorPedido[p.id] || [];
+                    let moduloFiscalHTML = '';
+                    if (configVendedor.usa_nfe && p.status !== 'Cancelado') {
+                        if (anexosPedido.length > 0) {
+                            const anexosHtml = anexosPedido.map(anexo => {
+                                if (anexo.tipo === 'imagem') {
+                                    return `
+                                        <a href="${anexo.url_publica}" target="_blank" class="group block overflow-hidden rounded-2xl border border-slate-700 bg-slate-900/60 p-2 transition hover:border-blue-400">
+                                            <img src="${anexo.url_publica}" alt="Anexo de imagem" class="w-full h-28 object-cover rounded-xl mb-2" />
+                                            <div class="flex items-center justify-between text-[10px] text-slate-300">
+                                                <span>Imagem anexada</span>
+                                                <span class="text-blue-300">Ver imagem</span>
+                                            </div>
+                                        </a>`;
+                                }
+                                return `
+                                    <div class="rounded-2xl border border-slate-700 bg-slate-900/60 p-3 text-[11px] text-slate-200">
+                                        <div class="flex items-center justify-between gap-3">
+                                            <span>📄 ${anexo.nome_arquivo}</span>
+                                            <a href="${anexo.url_publica}" target="_blank" class="text-blue-300 hover:text-blue-200 text-[10px] font-bold">Abrir</a>
+                                        </div>
+                                    </div>`;
+                            }).join('');
+
+                            moduloFiscalHTML = `
+                                <div class="space-y-2 mt-2">
+                                    ${anexosHtml}
+                                    <button onclick="anexarNotaFiscal(${p.id})" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs py-2 rounded-xl transition cursor-pointer border border-blue-500 shadow-sm">
+                                        📎 Anexar mais arquivos
+                                    </button>
+                                </div>`;
+                        } else {
+                            moduloFiscalHTML = `
+                                <button onclick="anexarNotaFiscal(${p.id})" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs py-2 rounded-xl transition mt-2 cursor-pointer border border-blue-500 shadow-sm">
+                                    📎 Anexar arquivo (PDF ou imagem)
+                                </button>`;
+                        }
+                    }
+
+                    // LINKS DINÂMICOS: GOOGLE MAPS E WHATSAPP
+                    let wppNumero = p.cliente_telefone ? p.cliente_telefone.replace(/\D/g, '') : '';
+                    let wppLinkUrl = wppNumero ? `https://wa.me/55${wppNumero}` : '#';
+                    const enderecoPedido = p.cliente_endereco_completo || p.cliente_endereco || [p.cliente_rua, p.cliente_numero, p.cliente_cidade, p.cliente_cep].filter(Boolean).join(', ');
+                    let mapsLinkUrl = enderecoPedido ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(enderecoPedido)}` : '#';
+
+                    // NOVO ARRAY DE STATUS ATUALIZADO NO BANCO
+                    const todosStatus = ['Pendente', 'Aprovado', 'Em Separação', 'Faturado', 'Saiu para Entrega', 'Finalizado', 'Cancelado'];
+                    const optionsSelect = todosStatus.map(s => `<option value="${s}" ${p.status === s ? 'selected' : ''}>${s}</option>`).join('');
+
+                    lista.innerHTML += `
+                        <div class="bg-gray-800 border border-gray-700 rounded-2xl p-5 shadow-lg flex flex-col justify-between space-y-3 relative">
+                            <div>
+                                <div class="flex justify-between items-start border-b border-gray-700/50 pb-3 mb-3">
+                                    <div>
+                                        <span class="text-[10px] text-gray-500 block font-mono">ORDEM #${p.id}</span>
+                                        <h4 class="font-black text-gray-100 text-base leading-tight">${p.cliente_nome}</h4>
+                                    </div>
+                                    <select onchange="atualizarStatusPedido(${p.id}, this.value)" class="bg-gray-900 border border-gray-600 rounded-lg px-2 py-1.5 text-[11px] font-bold text-amber-400 focus:outline-none cursor-pointer">
+                                        ${optionsSelect}
+                                    </select>
+                                </div>
+
+                                <div class="bg-gray-900/60 p-3 rounded-xl border border-gray-700/50 text-[11px] space-y-2 mb-3">
+                                    <div class="flex items-start justify-between gap-2">
+                                        <div class="text-gray-300">
+                                            <span class="font-bold text-gray-400 block mb-0.5">📞 WhatsApp:</span> 
+                                            ${p.cliente_telefone || 'Não informado'}
+                                        </div>
+                                        ${wppNumero ? `<a href="${wppLinkUrl}" target="_blank" class="bg-green-600/20 text-green-500 hover:bg-green-600 hover:text-white px-2 py-1 rounded text-[9px] font-bold transition">Chamar ↗</a>` : ''}
+                                    </div>
+                                    <div class="border-t border-gray-700/40 pt-2">
+                                        <span class="font-bold text-gray-400 block mb-0.5">🪪 CPF/CNPJ:</span>
+                                        <span class="text-gray-300 block">${p.cliente_documento || 'Não informado'}</span>
+                                    </div>
+                                    <div class="border-t border-gray-700/40 pt-2">
+                                        <span class="font-bold text-gray-400 block mb-0.5">📍 Endereço de Entrega:</span>
+                                        <span class="text-gray-300 block line-clamp-2">${enderecoPedido || 'Não informado'}</span>
+                                        ${enderecoPedido ? `<a href="${mapsLinkUrl}" target="_blank" class="text-blue-400 hover:text-blue-300 font-bold block mt-1">🗺️ Traçar Rota no Mapa</a>` : ''}
+                                    </div>
+                                </div>
+
+                                <div class="space-y-1 bg-gray-900/40 p-2 rounded-xl max-h-[120px] overflow-y-auto border border-gray-800">
+                                    ${itensHtml}
+                                </div>
+                            </div>
+                            
+                            <div class="space-y-2 pt-1 border-t border-gray-700/50">
+                                <div class="flex justify-between items-center text-xs text-gray-400 mb-2">
+                                    <span>Massa do Lote Logístico:</span>
+                                    <span class="font-mono font-semibold bg-gray-900 px-2 py-0.5 rounded">${parseFloat(p.peso_total_kg || 0).toFixed(3)} Kg</span>
+                                </div>
+                                <div class="flex justify-end items-center">
+                                    <span class="text-xl font-black text-emerald-400 font-mono">R$ ${parseFloat(p.total || 0).toFixed(2)}</span>
+                                </div>
+                                ${moduloFinanceiroHTML}
+                                ${moduloFiscalHTML}
+                            </div>
+                        </div>`;
+                });
+
+                document.getElementById('logisticaPesoTotal').innerText = pesoLogisticaTotal.toFixed(3) + " Kg";
+                atualizarMetricasCard(faturamentoAcumulado, pedidosNaoCancelados, data.length);
+            } catch (err) {
+                console.error(err);
+                lista.innerHTML = '<p class="text-red-400 py-4 text-sm col-span-2 text-center">Falha ao ler dados transacionais.</p>';
+            }
+        }
+
+        function atualizarMetricasCard(faturamento, validos, totalGeral) {
+            document.getElementById('metricaFaturamento').innerText = "R$ " + faturamento.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            document.getElementById('metricaPedidos').innerText = totalGeral;
+            
+            let ticket = validos > 0 ? faturamento / validos : 0;
+            document.getElementById('metricaTicket').innerText = "R$ " + ticket.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        async function atualizarStatusPedido(id, novoStatus) {
+            try {
+                const { error } = await supabaseClient.from('pedidos').update({ status: novoStatus }).eq('id', id);
+                if (error) {
+                    if (await verificarSessaoInvalida(error)) return;
+                    throw error;
+                }
+                // Recarrega visualmente sem dar alert, para ser mais rápido na operação
+                carregarPedidosEBI();
+            } catch (err) {
+                alert("Falha ao mudar status. O banco de dados bloqueou: " + err.message);
+                carregarPedidosEBI(); // Volta ao original se falhar
+            }
+        }
+
+        // Função para anexar PDF ao Pedido via upload de arquivo
+        async function anexarNotaFiscal(id) {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'application/pdf';
+            input.style.display = 'none';
+
+            input.onchange = async () => {
+                const file = input.files && input.files[0];
+                if (!file) return;
+
+                const nomeArquivo = `${Date.now()}-${file.name.replace(/\s+/g, '_')}`;
+                const caminhoStorage = `nfes/${slugActive}/${id}/${nomeArquivo}`;
+
+                try {
+                    const { data: uploadData, error: uploadError } = await supabaseClient.storage
+                        .from('nfes')
+                        .upload(caminhoStorage, file, {
+                            cacheControl: '3600',
+                            upsert: true,
+                            contentType: 'application/pdf'
+                        });
+
+                    if (uploadError) throw uploadError;
+
+                    const { data: urlData } = supabaseClient.storage.from('nfes').getPublicUrl(uploadData.path);
+                    const urlPublica = urlData.publicUrl;
+
+                    const { error: insertError } = await supabaseClient.from('pedido_anexos').insert([{
+                        pedido_id: id,
+                        tipo: 'nfe',
+                        nome_arquivo: file.name,
+                        url_publica: urlPublica
+                    }]);
+
+                    if (insertError) throw insertError;
+
+                    await supabaseClient.from('pedidos').update({ nfe_pdf_url: urlPublica }).eq('id', id);
+
+                    alert("📎 Arquivo de NF-e anexado com sucesso!");
+                    carregarPedidosEBI();
+                } catch (err) {
+                    console.error(err);
+                    alert("Erro ao anexar o arquivo PDF: " + err.message + "\nCrie o bucket público 'nfes' no Storage do Supabase para o upload funcionar.");
+                }
+            };
+
+            document.body.appendChild(input);
+            input.click();
+            input.remove();
+        }
+
+        // ========================== CONFIGURAÇÕES ==========================
+        async function carregarConfiguracoes() {
+            try {
+                const { data, error } = await supabaseClient.from('configuracoes').select('*').eq('slug', slugActive).maybeSingle();
+                if (error) {
+                    if (await verificarSessaoInvalida(error)) return;
+                    throw error;
+                }
+                if (data) {
+                    document.getElementById('cfgNome').value = data.nome_empresa || '';
+                    document.getElementById('cfgMinimo').value = data.pedido_minimo || 0;
+                    document.getElementById('cfgWhatsapp').value = data.whatsapp || '';
+                    document.getElementById('cfgLogoUrl').value = data.logo_url || '';
+                    document.getElementById('cfgBannerUrl').value = data.imagem_capa_url || '';
+                    document.getElementById('cfgTemaCor').value = data.tema_cor || '#0d9488';
+                    document.getElementById('cfgDescricao').value = data.descricao_empresa || '';
+                    
+                    document.getElementById('cfgUsaNfe').checked = data.usa_nfe !== false;
+                    document.getElementById('cfgUsaPix').checked = data.usa_pix !== false;
+                    document.getElementById('cfgUsaBoleto').checked = data.usa_boleto !== false;
+                    document.getElementById('cfgUsaLogistica').checked = data.usa_logistica !== false;
+
+                    configVendedor.usa_nfe = data.usa_nfe !== false;
+                    configVendedor.usa_pix = data.usa_pix !== false;
+                    configVendedor.usa_boleto = data.usa_boleto !== false;
+                    configVendedor.usa_logistica = data.usa_logistica !== false;
+
+                    document.getElementById('metricaMinimo').innerText = "R$ " + parseFloat(data.pedido_minimo || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+
+                    if (configVendedor.usa_logistica) {
+                        document.getElementById('boxLogisticaMassa').classList.remove('hidden');
+                    } else {
+                        document.getElementById('boxLogisticaMassa').classList.add('hidden');
+                    }
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        document.getElementById('configForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.submitter || document.querySelector('#configForm button[type="submit"]');
+            const originalText = btn ? btn.innerText : "Salvar Diretrizes";
+            if (btn) { btn.innerText = "Sincronizando..."; btn.disabled = true; }
+
+            // Segurança: use acesso defensivo (?.) para evitar exceptions quando elementos estiverem ausentes
+            const get = id => document.getElementById(id);
+            // prepare logo/banner URLs and upload files if provided
+            const logoFile = get('cfgLogoFile')?.files?.[0];
+            const bannerFile = get('cfgBannerFile')?.files?.[0];
+            let logoUrl = get('cfgLogoUrl')?.value || '';
+            let bannerUrl = get('cfgBannerUrl')?.value || '';
+
+            try {
+                if (logoFile) {
+                    const nomeArquivo = `logo-${Date.now()}-${logoFile.name.replace(/\s+/g, '_')}`;
+                    const caminho = `empresas/${slugActive}/${nomeArquivo}`;
+                    logoUrl = await uploadStorageFile(STORAGE_BUCKET, caminho, logoFile);
+                }
+
+                if (bannerFile) {
+                    const nomeArquivo = `banner-${Date.now()}-${bannerFile.name.replace(/\s+/g, '_')}`;
+                    const caminho = `empresas/${slugActive}/${nomeArquivo}`;
+                    bannerUrl = await uploadStorageFile(STORAGE_BUCKET, caminho, bannerFile);
+                }
+
+                const payloadUpdate = {
+                    nome_empresa: get('cfgNome')?.value || '',
+                    pedido_minimo: parseFloat(get('cfgMinimo')?.value || '0') || 0,
+                    whatsapp: get('cfgWhatsapp')?.value || '',
+                    logo_url: logoUrl,
+                    imagem_capa_url: bannerUrl,
+                    tema_cor: get('cfgTemaCor')?.value || '#0d9488',
+                    descricao_empresa: get('cfgDescricao')?.value || '',
+                    usa_nfe: get('cfgUsaNfe')?.checked ?? false,
+                    usa_pix: get('cfgUsaPix')?.checked ?? false,
+                    usa_boleto: get('cfgUsaBoleto')?.checked ?? false,
+                    usa_logistica: get('cfgUsaLogistica')?.checked ?? false
+                };
+
+                // Primeiro tente atualizar a linha existente (evita INSERT que RLS pode bloquear)
+                const { data: updated, error: updateError } = await supabaseClient.from('configuracoes').update(payloadUpdate).eq('slug', slugActive).select();
+                if (updateError) {
+                    if (await verificarSessaoInvalida(updateError)) return;
+                    throw updateError;
+                }
+
+                if (!updated || updated.length === 0) {
+                    // Nenhuma linha atualizada: a linha pode não existir ou RLS bloqueou INSERT
+                    alert('Nenhuma configuração encontrada para este slug. Por segurança o cliente não criou uma nova linha. Execute o SQL para pré-criar a linha de configuração (veja instruções) ou peça um administrador para criá-la.');
+                } else {
+                    alert("Diretrizes de rede corporativa atualizadas!");
+                }
+                await carregarConfiguracoes();
+                carregarPedidosEBI();
+            } catch (err) {
+                console.error(err);
+                alert("Erro ao salvar configurações: " + (err.message || err));
+            } finally {
+                if (btn) { btn.innerText = originalText; btn.disabled = false; }
+            }
+        });
+
+        // ========================== PRODUTOS (INSERT / UPDATE / DELETE) ==========================
+        async function carregarProdutos() {
+            const tabela = document.getElementById('tabelaProdutos');
+            tabela.innerHTML = '<tr><td colspan="4" class="p-4 text-gray-400 text-center">Lendo estoque...</td></tr>';
+
+            try {
+                const { data, error } = await supabaseClient.from('produtos').select('*').eq('slug', slugActive).order('id', { ascending: false });
+                if (error) {
+                    if (await verificarSessaoInvalida(error)) return;
+                    throw error;
+                }
+
+                if (!data || data.length === 0) {
+                    tabela.innerHTML = '<tr><td colspan="4" class="p-4 text-gray-500 text-center">Nenhum item adicionado a esta distribuidora.</td></tr>';
+                    return;
+                }
+
+                tabela.innerHTML = '';
+                data.forEach(p => {
+                    let fotoUrl = p.imagem_url && p.imagem_url.trim() !== '' ? p.imagem_url : 'https://images.unsplash.com/photo-1540959733332-eab4deceeaf7?auto=format&fit=crop&w=600&q=80';
+
+                    // Convertendo o objeto para string e escapando aspas para jogar no botão de editar
+                    const prodJson = JSON.stringify(p).replace(/'/g, "&apos;").replace(/"/g, "&quot;");
+
+                    tabela.innerHTML += `
+                        <tr class="hover:bg-gray-800/40 transition">
+                            <td class="p-4">
+                                <img src="${fotoUrl}" class="w-12 h-12 object-cover rounded-xl bg-gray-900 border border-gray-700 flex-shrink-0" onerror="this.src='https://images.unsplash.com/photo-1540959733332-eab4deceeaf7?auto=format&fit=crop&w=600&q=80'">
+                            </td>
+                            <td class="p-4">
+                                <span class="font-bold text-gray-200 block text-sm">${p.nome}</span>
+                                <span class="text-xs text-gray-500 block max-w-xs truncate mt-0.5">${p.descricao || 'Sem descrição'}</span>
+                                <div class="flex space-x-2 text-[10px] text-gray-400 font-mono mt-1">
+                                    <span>Múltiplo: ${p.multiplo_compra || 1}</span>
+                                    <span>•</span>
+                                    <span>Massa: ${parseFloat(p.peso_kg || 0).toFixed(3)} Kg</span>
+                                </div>
+                            </td>
+                            <td class="p-4 font-mono font-bold text-emerald-400">
+                                R$ ${parseFloat(p.preco || 0).toFixed(2)}
+                            </td>
+                            <td class="p-4 text-right space-x-2 whitespace-nowrap">
+                                <button onclick="iniciarEdicaoProduto('${prodJson}')" class="bg-blue-900/40 hover:bg-blue-800/60 text-blue-400 border border-blue-800/50 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer">
+                                    Editar
+                                </button>
+                                <button onclick="deletarProduto(${p.id})" class="bg-red-950/40 hover:bg-red-900/60 text-red-400 border border-red-900/50 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer">
+                                    Excluir
+                                </button>
+                            </td>
+                        </tr>`;
+                });
+            } catch (err) {
+                tabela.innerHTML = '<tr><td colspan="4" class="p-4 text-red-400 text-center">Erro ao compor catálogo.</td></tr>';
+            }
+        }
+
+        // EDITA O PRODUTO (Joga os dados pro form)
+        function iniciarEdicaoProduto(produtoString) {
+            const prod = JSON.parse(produtoString);
+            
+            // Troca o título e o botão
+            document.getElementById('tituloFormProduto').innerText = "Editando: " + prod.nome;
+            document.getElementById('btnSalvarProduto').innerText = "Atualizar Produto";
+            document.getElementById('btnSalvarProduto').className = "bg-amber-600 hover:bg-amber-500 text-white px-6 py-2.5 rounded-xl font-bold text-sm cursor-pointer";
+            document.getElementById('btnCancelarEdicao').classList.remove('hidden');
+
+            // Preenche os campos
+            document.getElementById('prodNome').value = prod.nome;
+            document.getElementById('prodPreco').value = prod.preco;
+            document.getElementById('prodMultiplo').value = prod.multiplo_compra;
+            document.getElementById('prodPeso').value = prod.peso_kg || 0;
+            document.getElementById('prodFotoUrl').value = prod.imagem_url || '';
+            document.getElementById('prodDesc').value = prod.descricao || '';
+            
+            editandoProdutoId = prod.id; // Avisa o form que é um UPDATE
+
+            // Sobe a tela para o formulário
+            document.getElementById('abaProdutos').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // CANCELA EDICAO
+        function cancelarEdicao() {
+            editandoProdutoId = null;
+            document.getElementById('produtoForm').reset();
+            document.getElementById('prodFotoUrl').value = 'https://images.unsplash.com/photo-1530587191325-3db32d826c18?w=550';
+            document.getElementById('prodFotoArquivo').value = '';
+            document.getElementById('tituloFormProduto').innerText = "Adicionar Novo Produto ao Catálogo";
+            document.getElementById('btnSalvarProduto').innerText = "Salvar no Catálogo";
+            document.getElementById('btnSalvarProduto').className = "bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-xl font-bold text-sm cursor-pointer";
+            document.getElementById('btnCancelarEdicao').classList.add('hidden');
+        }
+
+        async function deletarProduto(id) {
+            if (confirm("Deseja remover este produto permanentemente do seu canal de vendas?")) {
+                try {
+                    const { error } = await supabaseClient.from('produtos').delete().eq('id', id);
+                    if (error) throw error;
+                    carregarProdutos();
+                } catch (err) {
+                    alert("Erro ao excluir: " + err.message);
+                }
+            }
+        }
+
+        // SALVAR OU ATUALIZAR PRODUTO
+        document.getElementById('produtoForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btnSalvarProduto');
+            const btnAnteriorClass = btn.className;
+
+            // Ativa o estado de carregamento do botão
+            btn.innerText = "A guardar...";
+            btn.disabled = true;
+
+            // 1. Captura e limpa a URL da foto
+            let campoFoto = document.getElementById('prodFotoUrl').value.trim();
+
+            // 2. Captura os valores dos inputs e protege contra strings vazias ("")
+            const precoRaw = document.getElementById('prodPreco').value.trim();
+            const multiploRaw = document.getElementById('prodMultiplo').value.trim();
+            const pesoRaw = document.getElementById('prodPeso').value.trim();
+            let slugEnvio = slugActive || 'distribuidora-padrao';
+
+            // 3. Monta o Payload convertendo corretamente para números ou null
+            const payloadProduto = {
+                nome: document.getElementById('prodNome').value.trim(),
+                preco: precoRaw !== "" ? parseFloat(precoRaw) : 0,
+                multiplo_compra: multiploRaw !== "" ? parseInt(multiploRaw) : 1,
+                peso_kg: pesoRaw !== "" ? parseFloat(pesoRaw) : 0,
+                imagem_url: campoFoto || null,
+                descricao: document.getElementById('prodDesc').value.trim(),
+                slug: slugEnvio || null
+            };
+
+            // Remove o campo ID de dentro do payload por segurança absoluta
+            delete payloadProduto.id;
+
+            try {
+                // 4. Trata o ID de edição para garantir que strings vazias viram falsy
+                const idValido = (typeof editandoProdutoId === 'string') ? editandoProdutoId.trim() : editandoProdutoId;
+
+                if (idValido && idValido !== "") {
+                    // MODO UPDATE (Atualizar Produto Existente)
+                    const { error } = await supabaseClient
+                        .from('produtos')
+                        .update(payloadProduto)
+                        .eq('id', idValido);
+
+                    if (error) throw error;
+                    alert("Produto atualizado com sucesso!");
+                } else {
+                    // MODO INSERT (Criar Novo Produto - NÃO envia o campo ID)
+                    const { error } = await supabaseClient
+                        .from('produtos')
+                        .insert([payloadProduto]);
+
+                    if (error) throw error;
+                    alert("Novo produto inserido no catálogo!");
+                }
+
+                cancelarEdicao(); // Limpa e reseta o formulário
+                carregarProdutos(); // Atualiza a tabela na tela
+            } catch (err) {
+                alert("Erro de banco de dados: " + err.message);
+                btn.innerText = editandoProdutoId ? "Atualizar Produto" : "Salvar no Catálogo";
+                btn.className = btnAnteriorClass;
+                btn.disabled = false;
+            }
+        });
+
+        async function logout() { 
+            await supabaseClient.auth.signOut();
+            window.location.href = 'login.html'; 
+        }
+    </script>
+</body>
+</html>

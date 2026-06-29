@@ -1,0 +1,633 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Granja Ouro Branco | Catálogo Digital B2B</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --theme-base: #f59e0b;
+      --theme-glass: rgba(255,255,255,0.70);
+      --theme-border: rgba(148,163,184,0.28);
+      --theme-text: #0f172a;
+      --theme-muted: rgba(15,23,42,0.55);
+    }
+    body {
+      background: radial-gradient(circle at top, rgba(245,158,11,0.10), transparent 25%),
+                  linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
+      color: var(--theme-text);
+    }
+    .glass-card {
+      background: var(--theme-glass);
+      border: 1px solid var(--theme-border);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      box-shadow: 0 24px 60px rgba(15,23,42,0.08);
+    }
+    .glass-panel {
+      background: rgba(255,255,255,0.82);
+      border: 1px solid rgba(148,163,184,0.20);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+    .theme-button {
+      background: linear-gradient(90deg, var(--theme-base), rgba(245,158,11,0.92));
+      color: #0f172a;
+    }
+    .theme-border {
+      border-color: rgba(245,158,11,0.22);
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-900 antialiased">
+  <div class="min-h-screen bg-slate-50">
+    <header class="sticky top-0 z-50 border-b border-slate-200 bg-white/95 shadow-sm">
+      <div class="mx-auto max-w-7xl px-4 py-5">
+        <div class="space-y-3">
+           <div class="max-w-3xl">
+             <h1 class="mt-4 text-4xl font-black tracking-tight text-slate-900 sm:text-5xl">Experiência de compra corporativa com frescor e confiança.</h1>
+           </div>
+      </div>
+    </header>
+
+    <main class="mx-auto max-w-7xl px-4 py-8">
+      <button id="btnCartOpen" type="button" class="fixed bottom-6 right-6 z-50 inline-flex items-center gap-3 rounded-full theme-button px-5 py-3 text-sm font-semibold text-slate-950 shadow-2xl shadow-amber-500/20 transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-amber-300">
+        <span class="text-lg">🛒</span>
+        <span id="cartButtonLabel">Ver carrinho</span>
+        <span id="cartBadge" class="inline-flex h-7 min-w-[1.75rem] items-center justify-center rounded-full bg-white/90 px-2 text-xs font-black text-slate-900 border border-slate-200">0</span>
+      </button>
+
+      <section class="space-y-8">
+        <section id="catalogBanner" class="relative overflow-hidden rounded-[2rem] border border-slate-200 bg-white/80 p-6 shadow-xl glass-card">
+          <div class="absolute inset-0 bg-gradient-to-r from-white/90 via-white/70 to-white/90"></div>
+          <div class="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+            <div class="space-y-4">
+              <div class="flex items-center gap-4">
+                <img id="catalogLogo" class="h-16 w-16 rounded-3xl border border-slate-200 object-cover bg-slate-100" src="https://images.unsplash.com/photo-1530587191325-3db32d826c18?w=120" alt="Logo do catálogo">
+                <div>
+                  <p class="text-xs uppercase tracking-[0.3em] text-slate-500">Catálogo corporativo</p>
+                  <h2 id="nomeDistribuidora" class="text-3xl font-black text-slate-900 sm:text-4xl">Carregando catálogo...</h2>
+                </div>
+              </div>
+              <p id="dynamicBannerText" class="max-w-2xl text-sm leading-7 text-slate-700">Sua jornada de compra premium começa agora.</p>
+            </div>
+            <div class="grid gap-3">
+              <div class="glass-panel rounded-3xl border border-slate-200 p-4">
+                <p class="text-xs uppercase tracking-[0.3em] text-slate-500">Pedido mínimo</p>
+                <p id="txtPedidoMinimo" class="mt-3 text-3xl font-black tracking-tight text-slate-900">R$ 0,00</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div id="catalogError" class="hidden"></div>
+
+        <div id="gridProdutos" class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3"></div>
+
+        <div class="mt-10 glass-panel rounded-[2rem] border border-slate-200 p-6">
+          <div class="space-y-4">
+            <h3 class="text-base font-semibold uppercase tracking-[0.25em] text-slate-900">Sobre a distribuidora</h3>
+            <p id="descricaoEmpresa" class="text-slate-700 leading-7">Cada empresa pode personalizar sua paleta, logo e descrição para deixar o catálogo com personalidade própria.</p>
+          </div>
+        </div>
+      </section>
+
+      <div id="cartDrawerBackdrop" class="hidden fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-sm"></div>
+      <aside id="cartDrawer" class="fixed inset-y-0 right-0 z-50 hidden w-full max-w-md overflow-y-auto glass-card p-6 backdrop-blur-xl">
+        <div class="mb-6 flex items-center justify-between gap-4">
+          <div>
+            <p class="text-xs uppercase tracking-[0.3em] text-slate-700">Carrinho corporativo</p>
+            <h3 class="mt-2 text-2xl font-black tracking-tight text-slate-900">Resumo de pedido</h3>
+          </div>
+          <button id="btnCartClose" type="button" class="inline-flex h-11 items-center justify-center rounded-full border border-slate-300 bg-white/80 px-4 text-sm font-semibold text-slate-900 transition hover:bg-white">Fechar</button>
+        </div>
+
+<div class="glass-card rounded-[2rem] p-6">
+          <div class="flex items-center justify-between gap-4">
+             <div>
+               <p class="text-xs uppercase tracking-[0.3em] text-slate-500">Carrinho corporativo</p>
+               <h3 class="mt-3 text-2xl font-black tracking-tight text-slate-900">Resumo de pedido</h3>
+             </div>
+             <div class="rounded-full bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-700 border border-emerald-200">Itens <span id="carrinhoContador">0</span></div>
+          </div>
+
+          <div id="carrinhoItens" class="mt-6 space-y-4">
+             <p class="text-sm text-slate-400 text-center py-8">Ainda não há produtos selecionados.</p>
+          </div>
+
+          <div class="glass-card mt-6 space-y-4 rounded-3xl border border-slate-200 p-4">
+             <div class="flex items-center justify-between text-sm text-slate-700">
+               <span>Peso total</span>
+               <span id="txtPesoTotal" class="font-mono font-bold text-slate-900">0.000 Kg</span>
+             </div>
+             <div class="flex items-center justify-between text-sm uppercase tracking-[0.2em] text-slate-500">
+               <span>Total geral</span>
+               <span id="txtTotalGeral" class="font-black text-slate-900 text-lg">R$ 0,00</span>
+             </div>
+          </div>
+
+          <div class="mt-6 rounded-3xl border border-slate-800/80 bg-slate-950/80 p-4 space-y-4">
+             <div class="space-y-3">
+               <label class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500" for="cliNome">Razão Social / Cliente</label>
+               <input type="text" id="cliNome" placeholder="Nome ou Razão Social"
+                      class="w-full rounded-2xl border border-slate-300 bg-white/90 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20">
+             </div>
+             <div class="space-y-3">
+               <label class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500" for="cliDocumento">CPF / CNPJ</label>
+               <input type="text" id="cliDocumento" placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                      class="w-full rounded-2xl border border-slate-300 bg-white/90 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20">
+             </div>
+             <div class="space-y-3">
+               <label class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500" for="cliTelefone">WhatsApp</label>
+               <input type="text" id="cliTelefone" placeholder="(11) 99999-9999"
+                      class="w-full rounded-2xl border border-slate-300 bg-white/90 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20">
+             </div>
+             <div class="grid gap-3 sm:grid-cols-2">
+               <div class="space-y-3">
+                 <label class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500" for="cliRua">Rua</label>
+                 <input type="text" id="cliRua" placeholder="Rua"
+                        class="w-full rounded-2xl border border-slate-300 bg-white/90 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20">
+               </div>
+               <div class="space-y-3">
+                 <label class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500" for="cliNumero">Número</label>
+                 <input type="text" id="cliNumero" placeholder="Número"
+                        class="w-full rounded-2xl border border-slate-300 bg-white/90 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20">
+               </div>
+             </div>
+             <div class="grid gap-3 sm:grid-cols-2">
+               <div class="space-y-3">
+                 <label class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500" for="cliCidade">Cidade</label>
+                 <input type="text" id="cliCidade" placeholder="Cidade"
+                        class="w-full rounded-2xl border border-slate-300 bg-white/90 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20">
+               </div>
+               <div class="space-y-3">
+                 <label class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500" for="cliCep">CEP</label>
+                 <input type="text" id="cliCep" placeholder="00000-000"
+                        class="w-full rounded-2xl border border-slate-300 bg-white/90 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20">
+               </div>
+             </div>
+          </div>
+
+          <button onclick="enviarPedidoB2B()" id="btnCheckout" disabled
+                  class="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-3xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-300 px-6 py-4 text-sm font-black uppercase tracking-[0.18em] text-slate-950 shadow-2xl shadow-amber-500/30 transition duration-300 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50">
+             Abaixo do Mínimo Comercial
+          </button>
+        </div>
+
+        <div class="mt-6 glass-panel rounded-[2rem] border border-slate-200 p-6">
+           <h3 class="text-sm font-semibold uppercase tracking-[0.3em] text-slate-900">Suporte e notas fiscais</h3>
+           <p class="mt-3 text-sm text-slate-600">Digite o CPF/CNPJ para consultar histórico e notas fiscais disponíveis.</p>
+           <div id="historicoPedidosCliente" class="mt-5 space-y-3 max-h-64 overflow-y-auto text-sm text-slate-700"></div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <script>
+    const SUPABASE_URL = "https://xohkquwlmdsukxtgeqsg.supabase.co"; 
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhvaGtxdXdsbWRzdWt4dGdlcXNnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1OTAyNzIsImV4cCI6MjA5ODE2NjI3Mn0.cwHkNa19Wn48MzlQINZ0CmMOLqF9-fTelsmlYD9e7zQ"; 
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const urlParams = new URLSearchParams(window.location.search);
+    function parseSlugFromUrl() {
+        const slugFromEmpresa = urlParams.get('empresa');
+        if (slugFromEmpresa) return slugFromEmpresa;
+        const raw = window.location.search.replace(/^\?/, '');
+        if (raw && !raw.includes('=')) return raw;
+        return null;
+    }
+    let slugActive = parseSlugFromUrl() || 'distribuidora-padrao';
+
+    let configTenant = { valorMinimo: 0 };
+    let carrinho = {};
+
+    async function verificarSessaoInvalida(err) {
+        if (err && (err.code === 'PGRST303' || (err.message && err.message.includes('JWT')))) {
+            await supabaseClient.auth.signOut();
+            window.location.reload();
+            return true;
+        }
+        return false;
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        await carregarPoliticasVendedor();
+        await carregarProdutosCatalogo();
+        document.getElementById('cliDocumento').addEventListener('input', (e) => {
+            listarNotasFiscaisCliente(e.target.value.trim());
+        });
+
+        document.getElementById('btnCartOpen')?.addEventListener('click', abrirCarrinho);
+        document.getElementById('btnCartClose')?.addEventListener('click', fecharCarrinho);
+        document.getElementById('cartDrawerBackdrop')?.addEventListener('click', fecharCarrinho);
+        atualizarCarrinhoBadge();
+    });
+
+    function mostrarErroCatalogo(mensagem) {
+        const aviso = document.getElementById('catalogError');
+        aviso.innerText = mensagem || '';
+        aviso.classList.toggle('hidden', !mensagem);
+    }
+
+    async function carregarPoliticasVendedor() {
+        try {
+            const { data, error } = await supabaseClient.from('configuracoes').select('*').eq('slug', slugActive).maybeSingle();
+            if (error) {
+                if (await verificarSessaoInvalida(error)) return;
+                throw error;
+            }
+            if (data) {
+                configTenant.valorMinimo = parseFloat(data.pedido_minimo || 0);
+                document.getElementById('nomeDistribuidora').innerText = data.nome_empresa || slugActive.toUpperCase();
+                document.getElementById('txtPedidoMinimo').innerText = `R$ ${configTenant.valorMinimo.toFixed(2)}`;
+                document.getElementById('descricaoEmpresa').innerText = data.descricao_empresa || 'Cada empresa pode personalizar sua paleta, logo e descrição para deixar o catálogo com personalidade própria.';
+                document.getElementById('catalogLogo').src = data.logo_url || 'https://images.unsplash.com/photo-1530587191325-3db32d826c18?w=120';
+                document.getElementById('catalogBanner').style.backgroundImage = data.imagem_capa_url ? `linear-gradient(rgba(15,23,42,0.48), rgba(15,23,42,0.32)), url('${data.imagem_capa_url}')` : '';
+                document.getElementById('catalogBanner').style.backgroundColor = data.imagem_capa_url ? '' : '';
+                document.getElementById('dynamicBannerText').innerText = data.texto_banner || 'Sua jornada de compra premium começa agora.';
+                atualizarProgressoPedido(0);
+            } else {
+                configTenant.valorMinimo = 0;
+                document.getElementById('nomeDistribuidora').innerText = slugActive.toUpperCase();
+                document.getElementById('descricaoEmpresa').innerText = 'Cada empresa pode personalizar sua paleta, logo e descrição para deixar o catálogo com personalidade própria.';
+                document.getElementById('catalogLogo').src = 'https://images.unsplash.com/photo-1530587191325-3db32d826c18?w=120';
+                document.getElementById('catalogBanner').style.backgroundImage = '';
+                document.getElementById('dynamicBannerText').innerText = 'Sua jornada de compra premium começa agora.';
+                atualizarProgressoPedido(0);
+            }
+        } catch (err) {
+            console.error(err);
+            mostrarErroCatalogo('');
+        }
+    }
+
+    function aplicarTemaCatalogo(themeColor) {
+        const accent = themeColor || '#0d9488';
+        document.documentElement.style.setProperty('--theme-color', accent);
+    }
+
+    function abrirCarrinho() {
+        document.getElementById('cartDrawer')?.classList.remove('hidden');
+        document.getElementById('cartDrawerBackdrop')?.classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
+    }
+
+    function fecharCarrinho() {
+        document.getElementById('cartDrawer')?.classList.add('hidden');
+        document.getElementById('cartDrawerBackdrop')?.classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
+    }
+
+    function atualizarCarrinhoBadge() {
+        const totalItens = Object.values(carrinho).reduce((acc, item) => acc + item.qtd, 0);
+        const badge = document.getElementById('cartBadge');
+        const label = document.getElementById('cartButtonLabel');
+        if (badge) badge.innerText = totalItens;
+        if (label) label.innerText = totalItens ? `Abrir carrinho (${totalItens})` : 'Ver carrinho';
+    }
+
+    function normalizarNumero(valor) {
+        return (valor || '').replace(/\D/g, '');
+    }
+
+    function validarCpfCnpj(valor) {
+        const numeros = normalizarNumero(valor);
+        return numeros.length === 11 || numeros.length === 14;
+    }
+
+    function validarCep(valor) {
+        return normalizarNumero(valor).length === 8;
+    }
+
+    function montarEnderecoCompleto() {
+        const rua = document.getElementById('cliRua').value.trim();
+        const numero = document.getElementById('cliNumero').value.trim();
+        const cidade = document.getElementById('cliCidade').value.trim();
+        const cep = document.getElementById('cliCep').value.trim();
+        return [rua, numero, cidade, cep ? `CEP ${cep}` : ''].filter(Boolean).join(', ');
+    }
+
+    function ajustarQuantidade(id, delta, step) {
+        const input = document.getElementById(`qtd_${id}`);
+        if (!input) return;
+        const current = parseInt(input.value, 10) || step;
+        const next = Math.max(step, current + delta);
+        input.value = Math.ceil(next / step) * step;
+    }
+
+    async function carregarProdutosCatalogo() {
+        const grid = document.getElementById('gridProdutos');
+        grid.innerHTML = '<p class="col-span-full text-center text-sm text-slate-500 py-16">Carregando produtos...</p>';
+        try {
+            const { data: produtos, error } = await supabaseClient.from('produtos').select('*').eq('slug', slugActive).order('id', { ascending: false });
+            if (error) {
+                if (await verificarSessaoInvalida(error)) return;
+                throw error;
+            }
+            if(!produtos || produtos.length === 0) {
+                grid.innerHTML = `<p class="col-span-full text-center text-sm text-slate-500 py-16">Nenhum produto cadastrado no catálogo desta empresa.</p>`;
+                return;
+            }
+            grid.innerHTML = '';
+            produtos.forEach(prod => {
+                const multiplo = prod.multiplo_compra || 1;
+                const precoFormatado = parseFloat(prod.preco || 0).toFixed(2);
+                const pesoProduto = prod.peso_kg || prod.peso || 0;
+                const imagem = prod.imagem_url || prod.foto_url || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&q=80';
+                grid.innerHTML += `
+                    <article class="group overflow-hidden rounded-[2rem] border border-slate-200 bg-white/70 shadow-xl transition-all duration-300 hover:-translate-y-1 hover:border-theme-border glass-card">
+                        <div class="relative aspect-[4/3] overflow-hidden bg-slate-100">
+                            <img src="${imagem}" alt="${prod.nome}" class="h-full w-full object-cover transition duration-500 group-hover:scale-105">
+                            <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-white/95 via-white/70 to-transparent p-4">
+                               <div class="inline-flex flex-wrap gap-2">
+                                 <span class="rounded-full bg-slate-900/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-700 border border-slate-200">Peso ${pesoProduto.toFixed(2)} kg</span>
+                               </div>
+                            </div>
+                        </div>
+                        <div class="space-y-4 p-5">
+                           <div class="space-y-2">
+                              <h3 class="text-xl font-semibold text-slate-900">${prod.nome}</h3>
+                              <p class="text-sm leading-6 text-slate-600 min-h-[3rem]">${prod.descricao || 'Descrição curta não disponível.'}</p>
+                           </div>
+                           <div class="grid gap-3">
+                               <div class="flex flex-wrap items-center gap-3">
+                                   <div class="rounded-3xl bg-white/80 px-3 py-2 text-xs uppercase tracking-[0.2em] text-slate-500 border border-slate-200">Preço unitário</div>
+                                   <div class="text-2xl font-black tracking-tight text-slate-900">R$ ${precoFormatado}</div>
+                               </div>
+                               <div class="grid grid-cols-[auto_1fr] gap-3">
+                                   <div class="rounded-3xl border border-slate-200 bg-white/80 p-3 text-sm text-slate-700">
+                                      <p class="mb-2 text-[11px] uppercase tracking-[0.25em] text-slate-400">Múltiplo</p>
+                                      <p class="font-semibold text-slate-900">${multiplo} un</p>
+                                   </div>
+                                   <div class="rounded-3xl border border-slate-200 bg-white/80 p-3 text-sm text-slate-700">
+                                      <p class="mb-2 text-[11px] uppercase tracking-[0.25em] text-slate-400">Tipo</p>
+                                      <p class="font-semibold text-slate-900">${prod.tipo || 'Produto'}</p>
+                                   </div>
+                               </div>
+                               <div class="grid gap-2 rounded-3xl border border-slate-200 bg-white/80 p-4">
+                                   <div class="flex items-center justify-between text-xs uppercase tracking-[0.25em] text-slate-500">Quantidade</div>
+                                   <div class="flex items-center gap-2">
+                                      <button type="button" onclick="ajustarQuantidade(${prod.id}, -${multiplo}, ${multiplo})" class="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-300 bg-white text-slate-900 transition hover:border-slate-400 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400">−</button>
+                                      <input type="number" id="qtd_${prod.id}" value="${multiplo}" min="${multiplo}" step="${multiplo}" class="w-full rounded-2xl border border-slate-300 bg-white/90 px-4 py-3 text-center text-lg font-semibold text-slate-900 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20">
+                                      <button type="button" onclick="ajustarQuantidade(${prod.id}, ${multiplo}, ${multiplo})" class="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-300 bg-white text-slate-900 transition hover:border-slate-400 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400">+</button>
+                                   </div>
+                               </div>
+                               <button type="button" onclick="adicionarAoCarrinho(${prod.id}, '${escape(prod.nome)}', ${prod.preco}, ${pesoProduto}, ${multiplo})" class="inline-flex w-full items-center justify-center gap-2 rounded-3xl theme-button px-5 py-4 text-sm font-black uppercase tracking-[0.18em] text-slate-950 shadow-xl transition duration-300 hover:-translate-y-0.5">
+                                  <span>🛒</span> Adicionar ao Pedido
+                               </button>
+                           </div>
+                        </div>
+                    </article>`;
+            });
+        } catch (err) {
+            grid.innerHTML = `<p class="col-span-full text-center text-sm text-rose-400 py-16">Erro ao carregar o catálogo.</p>`;
+        }
+    }
+
+    function adicionarAoCarrinho(id, nomeEscaped, preco, peso, multiplo) {
+        const inputQtd = document.getElementById(`qtd_${id}`);
+        let qtdDesejada = parseInt(inputQtd.value, 10) || multiplo;
+        if (qtdDesejada % multiplo !== 0) {
+            qtdDesejada = Math.ceil(qtdDesejada / multiplo) * multiplo;
+            inputQtd.value = qtdDesejada;
+            alert(`Quantidade ajustada automaticamente para ${qtdDesejada} unidades.`);
+        }
+        if (carrinho[id]) {
+            carrinho[id].qtd += qtdDesejada;
+        } else {
+            carrinho[id] = { nome: unescape(nomeEscaped), preco: preco, peso: peso, qtd: qtdDesejada };
+        }
+        renderizarCarrinho();
+    }
+
+    function removerDoCarrinho(id) {
+        delete carrinho[id];
+        renderizarCarrinho();
+    }
+
+    function atualizarProgressoPedido(totalGeral) {
+        const barra = document.getElementById('pedidoMinimoBar');
+        const status = document.getElementById('pedidoMinimoStatus');
+        const label = document.getElementById('pedidoMinimoLabel');
+        const minimo = configTenant.valorMinimo || 0;
+        const progresso = minimo > 0 ? Math.min((totalGeral / minimo) * 100, 100) : 100;
+        barra.style.width = `${progresso}%`;
+        if (minimo <= 0) {
+            status.innerText = 'Mínimo definido';
+            label.innerText = 'Sem regra de mínimo configurada.';
+            return;
+        }
+        if (totalGeral >= minimo) {
+            status.innerText = 'Meta atingida';
+            label.innerText = 'Pronto para transmitir pedido.';
+        } else {
+            status.innerText = 'Aguardando mínimo';
+            label.innerText = `Faltam R$ ${(minimo - totalGeral).toFixed(2)} para o pedido mínimo.`;
+        }
+    }
+
+    function renderizarCarrinho() {
+        const container = document.getElementById('carrinhoItens');
+        container.innerHTML = '';
+        let totalGeral = 0, pesoTotal = 0, totalItensContador = 0;
+        const chaves = Object.keys(carrinho);
+
+        if(chaves.length === 0) {
+            container.innerHTML = `<p class="text-sm text-slate-400 text-center py-8">Nenhum item adicionado ao carrinho ainda.</p>`;
+            document.getElementById('carrinhoContador').innerText = "0";
+            document.getElementById('txtTotalGeral').innerText = "R$ 0,00";
+            document.getElementById('txtPesoTotal').innerText = "0.000 Kg";
+            const btn = document.getElementById('btnCheckout');
+            btn.disabled = true;
+            btn.className = "mt-6 inline-flex w-full items-center justify-center gap-2 rounded-3xl bg-slate-700/80 px-6 py-4 text-sm font-black uppercase tracking-[0.18em] text-slate-300 shadow-lg transition duration-300 cursor-not-allowed opacity-60";
+            btn.innerText = "Abaixo do Mínimo Comercial";
+            atualizarProgressoPedido(0);
+            atualizarCarrinhoBadge();
+            return;
+        }
+
+        chaves.forEach(id => {
+            const item = carrinho[id];
+            const subtotalItem = item.preco * item.qtd;
+            totalGeral += subtotalItem;
+            pesoTotal += item.peso * item.qtd;
+            totalItensContador += item.qtd;
+
+            container.innerHTML += `
+                <div class="rounded-3xl border border-slate-800/90 bg-slate-950/80 p-4">
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="min-w-0">
+                            <p class="font-semibold text-slate-100 line-clamp-1">${item.nome}</p>
+                            <p class="mt-2 text-xs uppercase tracking-[0.18em] text-slate-500">Qtd: ${item.qtd} • Subtotal</p>
+                        </div>
+                        <button type="button" onclick="removerDoCarrinho(${id})" class="rounded-2xl border border-slate-700/80 bg-slate-900/80 px-3 py-2 text-xs font-semibold text-rose-300 transition hover:border-rose-400 hover:text-rose-100">Remover</button>
+                    </div>
+                    <div class="mt-3 text-right">
+                        <span class="text-sm text-slate-400">R$</span>
+                        <span class="text-xl font-black tracking-tight text-emerald-300"> ${subtotalItem.toFixed(2)}</span>
+                    </div>
+                </div>`;
+        });
+
+        document.getElementById('carrinhoContador').innerText = totalItensContador;
+        document.getElementById('txtTotalGeral').innerText = `R$ ${totalGeral.toFixed(2)}`;
+        document.getElementById('txtPesoTotal').innerText = `${pesoTotal.toFixed(3)} Kg`;
+        atualizarCarrinhoBadge();
+
+        const btn = document.getElementById('btnCheckout');
+        if (totalGeral >= configTenant.valorMinimo) {
+            btn.disabled = false;
+            btn.className = "mt-6 inline-flex w-full items-center justify-center gap-2 rounded-3xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-300 px-6 py-4 text-sm font-black uppercase tracking-[0.18em] text-slate-950 shadow-2xl shadow-amber-500/25 transition duration-300 hover:-translate-y-0.5";
+            btn.style.opacity = '1';
+            btn.innerText = "🚀 Transmitir Ordem de Compra";
+        } else {
+            btn.disabled = true;
+            btn.className = "mt-6 inline-flex w-full items-center justify-center gap-2 rounded-3xl bg-slate-700/80 px-6 py-4 text-sm font-black uppercase tracking-[0.18em] text-slate-300 shadow-lg transition duration-300 cursor-not-allowed opacity-60";
+            btn.innerText = `Faltam R$ ${(configTenant.valorMinimo - totalGeral).toFixed(2)} para o mínimo`;
+        }
+
+        atualizarProgressoPedido(totalGeral);
+    }
+
+    async function enviarPedidoB2B() {
+        const clienteNome = document.getElementById('cliNome').value.trim();
+        const clienteDocumentoRaw = document.getElementById('cliDocumento').value;
+        const clienteDocumento = normalizarNumero(clienteDocumentoRaw);
+        const clienteTelefone = document.getElementById('cliTelefone').value.trim();
+        const clienteRua = document.getElementById('cliRua').value.trim();
+        const clienteNumero = document.getElementById('cliNumero').value.trim();
+        const clienteCidade = document.getElementById('cliCidade').value.trim();
+        const clienteCepRaw = document.getElementById('cliCep').value;
+        const clienteCep = normalizarNumero(clienteCepRaw);
+        const clienteEndereco = montarEnderecoCompleto();
+
+        if(!clienteNome || !clienteTelefone || !clienteDocumento || !clienteRua || !clienteNumero || !clienteCidade || !clienteCep) {
+            return alert("🛑 Por favor, informe Nome, CPF/CNPJ, WhatsApp e o endereço completo de entrega!");
+        }
+
+        if (!validarCpfCnpj(clienteDocumentoRaw)) {
+            return alert("🛑 Documento inválido. Informe um CPF com 11 dígitos ou um CNPJ com 14 dígitos.");
+        }
+
+        if (!validarCep(clienteCepRaw)) {
+            return alert("🛑 CEP inválido. Informe um CEP com 8 dígitos.");
+        }
+
+        let totalCompra = Object.values(carrinho).reduce((acc, curr) => acc + (curr.preco * curr.qtd), 0);
+        if (totalCompra < configTenant.valorMinimo) {
+            return alert(`🛑 Trava Comercial: Valor total inferior ao mínimo exigido.`);
+        }
+
+        const btn = document.getElementById('btnCheckout');
+        btn.innerText = "TRANSMITINDO ORDEM...";
+        btn.disabled = true;
+
+        let itenArray = Object.keys(carrinho).map(id => ({
+            id_produto: id,
+            nome: carrinho[id].nome,
+            preco: carrinho[id].preco,
+            qtd: carrinho[id].qtd
+        }));
+        let pesoTotalCompra = Object.values(carrinho).reduce((acc, curr) => acc + (curr.peso * curr.qtd), 0);
+
+        try {
+            const { error } = await supabaseClient.from('pedidos').insert([{
+                cliente_nome: clienteNome,
+                cliente_documento: clienteDocumento,
+                cliente_telefone: clienteTelefone,
+                cliente_rua: clienteRua,
+                cliente_numero: clienteNumero,
+                cliente_cidade: clienteCidade,
+                cliente_cep: clienteCep,
+                cliente_endereco: clienteEndereco,
+                cliente_endereco_completo: clienteEndereco,
+                total: totalCompra,
+                peso_total_kg: pesoTotalCompra,
+                itens: itenArray,
+                status: 'Pendente',
+                slug: slugActive,
+                nfe_emitida: false
+            }]);
+
+            if(error) throw error;
+
+            alert("🎉 Ordem de Compra registrada e enviada com sucesso!");
+            carrinho = {};
+            document.getElementById('cliNome').value = '';
+            document.getElementById('cliDocumento').value = '';
+            document.getElementById('cliTelefone').value = '';
+            document.getElementById('cliRua').value = '';
+            document.getElementById('cliNumero').value = '';
+            document.getElementById('cliCidade').value = '';
+            document.getElementById('cliCep').value = '';
+            renderizarCarrinho();
+            listarNotasFiscaisCliente(clienteDocumento);
+        } catch(err) {
+            if (await verificarSessaoInvalida(err)) return;
+            alert("Erro ao registrar pedido: " + err.message);
+            renderizarCarrinho();
+        } finally {
+            btn.innerText = "🚀 Transmitir Ordem de Compra";
+            btn.disabled = false;
+        }
+    }
+
+    async function listarNotasFiscaisCliente(documento) {
+        const historico = document.getElementById('historicoPedidosCliente');
+        const valorDocumento = normalizarNumero(documento);
+        if (!valorDocumento || valorDocumento.length < 11) {
+            historico.innerHTML = '<p class="text-slate-500 text-center">Digite o CPF/CNPJ para rastrear notas.</p>';
+            return;
+        }
+        try {
+            const { data, error } = await supabaseClient.from('pedidos').select('*').eq('slug', slugActive).eq('cliente_documento', valorDocumento).order('id', { ascending: false });
+            if (error) {
+                if (await verificarSessaoInvalida(error)) return;
+                throw error;
+            }
+            if (!data || data.length === 0) {
+                historico.innerHTML = '<p class="text-slate-500 text-center">Nenhum pedido localizado.</p>';
+                return;
+            }
+            historico.innerHTML = '';
+            data.forEach(p => {
+                let statusNfe = p.nfe_pdf_url
+                    ? `<div class="mt-3 flex items-center justify-between rounded-3xl border border-emerald-500/20 bg-emerald-950/30 p-3">
+                          <div class="flex items-center gap-3 min-w-0">
+                              <span class="text-xl text-emerald-400">📄</span>
+                              <div class="min-w-0">
+                                  <p class="text-sm font-semibold text-emerald-300 truncate">Nota Fiscal Disponível</p>
+                                  <p class="text-xs text-slate-400 truncate">Pronta para download.</p>
+                              </div>
+                          </div>
+                          <a href="${p.nfe_pdf_url}" target="_blank" class="rounded-2xl bg-emerald-500 px-3 py-2 text-[11px] font-semibold text-slate-950 transition hover:bg-emerald-400">Baixar PDF</a>
+                      </div>`
+                    : `<div class="mt-3 rounded-3xl border border-amber-500/20 bg-amber-950/30 p-3">
+                          <div class="flex items-center gap-3">
+                              <span class="text-xl text-amber-300">⏳</span>
+                              <div>
+                                  <p class="text-sm font-semibold text-amber-300">NF-e Pendente</p>
+                                  <p class="text-xs text-slate-400">Aguardando envio do documento.</p>
+                              </div>
+                          </div>
+                      </div>`;
+
+                historico.innerHTML += `
+                    <div class="rounded-3xl border border-slate-800/90 bg-slate-950/80 p-4">
+                        <div class="flex items-center justify-between gap-4">
+                            <span class="font-semibold text-slate-100">Pedido #${p.id}</span>
+                            <span class="text-emerald-300 font-black">R$ ${parseFloat(p.total).toFixed(2)}</span>
+                        </div>
+                        <p class="mt-2 text-xs uppercase tracking-[0.18em] text-slate-500">Status: <span class="text-blue-300">${p.status}</span></p>
+                        ${statusNfe}
+                    </div>`;
+            });
+        } catch (err) {
+            console.error(err);
+        }
+    }
+  </script>
+</body>
+</html>

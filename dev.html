@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DEV Panel - B2B Distribuidoras</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen antialiased">
+    <div id="passwordOverlay" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95 p-6">
+        <div class="w-full max-w-sm rounded-3xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
+            <h2 class="text-xl font-bold text-white">Acesso ao painel DEV</h2>
+            <p class="mt-2 text-sm text-slate-400">Digite a senha para entrar no painel.</p>
+            <input id="devPasswordInput" type="password" placeholder="Senha do painel" class="mt-5 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-blue-500">
+            <p id="passwordError" class="mt-3 text-sm text-red-400 hidden">Senha incorreta. Tente novamente.</p>
+            <button id="devPasswordButton" type="button" onclick="validarSenhaDev()" class="mt-6 w-full rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-bold text-slate-950 hover:bg-emerald-400">Entrar</button>
+        </div>
+    </div>
+
+    <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-40 shadow-xl">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
+            <div>
+                <p class="text-xs uppercase tracking-[0.35em] text-slate-500">Painel de Desenvolvimento</p>
+                <h1 class="text-3xl font-extrabold tracking-tight text-white">Controle Global de Distribuidoras</h1>
+                <p class="mt-2 text-sm text-slate-400">Gerencie todas as empresas, produtos e pedidos sem precisar de login.</p>
+            </div>
+            <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+                <span class="inline-flex items-center gap-2 rounded-2xl bg-slate-800 px-4 py-2 text-sm text-slate-300 border border-slate-700">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Conexão ativa
+                </span>
+                <a href="catalogo.html" class="rounded-2xl bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-700 transition">Catálogo</a>
+                <a href="admin.html" class="rounded-2xl bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-700 transition">Admin</a>
+                <button onclick="carregarDistribuidoras();" class="rounded-2xl bg-blue-600 hover:bg-blue-500 px-4 py-2 text-sm font-semibold text-white transition">Recarregar</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-6 grid gap-6 lg:grid-cols-[320px_1fr]">
+        <aside class="space-y-6">
+            <section class="rounded-3xl border border-slate-800 bg-slate-900/90 p-5 shadow-xl">
+                <div class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                    <div>
+                        <h2 class="text-base font-bold text-white">Empresas cadastradas</h2>
+                        <p class="text-sm text-slate-400">Veja as informações de cada empresa e selecione para editar.</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <button onclick="resetDistribuidoraForm();" class="inline-flex items-center gap-2 rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400">
+                            <span class="text-base">+</span> Nova distribuidora
+                        </button>
+                        <button onclick="carregarDistribuidoras();" class="inline-flex items-center gap-2 rounded-2xl bg-slate-800 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:bg-slate-700">
+                            Recarregar
+                        </button>
+                        <span id="badgeTotalDistribuidoras" class="rounded-full bg-slate-800 px-3 py-1 text-xs uppercase tracking-[0.2em] text-slate-300">0</span>
+                    </div>
+                </div>
+                <div class="mt-5 max-h-[36rem] overflow-y-auto rounded-3xl border border-slate-800 bg-slate-950/70 p-2">
+                    <div id="listaDistribuidoras" class="space-y-3"></div>
+                </div>
+            </section>
+
+            <section class="rounded-3xl border border-slate-800 bg-slate-900/90 p-5 shadow-xl">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-base font-bold text-white">Nova distribuidora</h2>
+                    <button onclick="resetDistribuidoraForm();" class="text-xs uppercase tracking-[0.2em] text-slate-400 hover:text-white">Limpar</button>
+                </div>
+                <form id="distribuidoraForm" class="mt-4 space-y-4" onsubmit="event.preventDefault(); salvarDistribuidora();">
+                    <div>
+                        <label class="text-xs font-semibold text-slate-300">Slug da empresa</label>
+                        <input id="distSlug" type="text" placeholder="ex: central-sul-alimentos" required class="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-900 px-3 py-3 text-sm text-white outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-slate-300">Nome comercial</label>
+                        <input id="distNome" type="text" placeholder="Central Sul Alimentos" required class="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-900 px-3 py-3 text-sm text-white outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-slate-300">Pedido mínimo (R$)</label>
+                        <input id="distMinimo" type="number" step="0.01" placeholder="150.00" class="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-900 px-3 py-3 text-sm text-white outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-slate-300">WhatsApp</label>
+                        <input id="distWhatsapp" type="text" placeholder="5511999999999" class="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-900 px-3 py-3 text-sm text-white outline-none focus:border-blue-500">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 text-xs text-slate-300">
+                        <label class="flex items-center gap-2 rounded-2xl border border-slate-700 bg-slate-950/60 px-3 py-3">
+                            <input id="distUsaNfe" type="checkbox" class="h-4 w-4 rounded border-slate-600 bg-slate-900 text-blue-500 focus:ring-blue-500">
+                            Usa NF-e
+                        </label>
+                        <label class="flex items-center gap-2 rounded-2xl border border-slate-700 bg-slate-950/60 px-3 py-3">
+                            <input id="distUsaPix" type="checkbox" class="h-4 w-4 rounded border-slate-600 bg-slate-900 text-blue-500 focus:ring-blue-500">
+                            Usa PIX
+                        </label>
+                        <label class="flex items-center gap-2 rounded-2xl border border-slate-700 bg-slate-950/60 px-3 py-3">
+                            <input id="distUsaBoleto" type="checkbox" class="h-4 w-4 rounded border-slate-600 bg-slate-900 text-blue-500 focus:ring-blue-500">
+                            Usa Boleto
+                        </label>
+                        <label class="flex items-center gap-2 rounded-2xl border border-slate-700 bg-slate-950/60 px-3 py-3">
+                            <input id="distUsaLogistica" type="checkbox" class="h-4 w-4 rounded border-slate-600 bg-slate-900 text-blue-500 focus:ring-blue-500">
+                            Usa Logística
+                        </label>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <button type="submit" class="inline-flex items-center justify-center rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-bold text-slate-950 transition hover:bg-emerald-400">Salvar distribuidora</button>
+                        <button type="button" onclick="removerDistribuidora();" class="inline-flex items-center justify-center rounded-2xl border border-red-500 px-4 py-3 text-sm font-semibold text-red-300 hover:bg-red-500/10">Excluir</button>
+                    </div>
+                </form>
+            </section>
+        </aside>
+
+        <section class="space-y-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                <article class="rounded-3xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl">
+                    <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Distribuidora</p>
+                    <h3 id="cardNomeDistribuidora" class="mt-3 text-2xl font-bold text-white">--</h3>
+                    <p id="cardSlugDistribuidora" class="mt-2 text-sm text-slate-400">slug: --</p>
+                </article>
+                <article class="rounded-3xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl">
+                    <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Pedidos</p>
+                    <p id="cardQuantidadePedidos" class="mt-3 text-3xl font-extrabold text-blue-400">0</p>
+                    <p class="mt-2 text-sm text-slate-400">Total de pedidos neste canal</p>
+                </article>
+                <article class="rounded-3xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl">
+                    <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Produtos</p>
+                    <p id="cardQuantidadeProdutos" class="mt-3 text-3xl font-extrabold text-emerald-400">0</p>
+                    <p class="mt-2 text-sm text-slate-400">Itens cadastrados</p>
+                </article>
+                <article class="rounded-3xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl">
+                    <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Faturamento</p>
+                    <p id="cardFaturamentoTotal" class="mt-3 text-3xl font-extrabold text-amber-400">R$ 0,00</p>
+                    <p class="mt-2 text-sm text-slate-400">Somatória de pedidos</p>
+                </article>
+            </div>
+
+            <div class="rounded-3xl border border-slate-800 bg-slate-900/90 p-5 shadow-xl">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h2 class="text-lg font-bold text-white">Painel de Controle</h2>
+                        <p class="text-sm text-slate-400">Visualize e altere dados de distribuidoras, produtos e pedidos.</p>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="mudarAba('overview');" id="btnAbaOverview" class="rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500">Resumo</button>
+                        <button onclick="mudarAba('produtos');" id="btnAbaProdutos" class="rounded-2xl bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-700">Produtos</button>
+                        <button onclick="mudarAba('pedidos');" id="btnAbaPedidos" class="rounded-2xl bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-700">Pedidos</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="abaOverview" class="rounded-3xl border border-slate-800 bg-slate-900/90 p-5 shadow-xl">
+                <div class="grid gap-5 lg:grid-cols-2">
+                    <div class="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
+                        <h3 class="text-sm font-bold uppercase text-slate-400">Configuração atual</h3>
+                        <dl class="mt-4 space-y-3 text-sm text-slate-300">
+                            <div class="flex justify-between gap-4"><span>Pedido mínimo</span><span id="txtMinimoAtual">R$ 0,00</span></div>
+                            <div class="flex justify-between gap-4"><span>WhatsApp</span><span id="txtWhatsappAtual">-</span></div>
+                            <div class="flex justify-between gap-4"><span>NF-e</span><span id="txtNfeAtual">Não</span></div>
+                            <div class="flex justify-between gap-4"><span>PIX</span><span id="txtPixAtual">Não</span></div>
+                            <div class="flex justify-between gap-4"><span>Boleto</span><span id="txtBoletoAtual">Não</span></div>
+                            <div class="flex justify-between gap-4"><span>Logística</span><span id="txtLogisticaAtual">Não</span></div>
+                        </dl>
+                    </div>
+                    <div class="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
+                        <h3 class="text-sm font-bold uppercase text-slate-400">Tarefas rápidas</h3>
+                        <div class="mt-4 space-y-3 text-sm text-slate-300">
+                            <button onclick="carregarProdutos();" class="w-full rounded-2xl bg-emerald-500 px-4 py-3 font-semibold text-slate-950 hover:bg-emerald-400">Recarregar produtos</button>
+                            <button onclick="carregarPedidos();" class="w-full rounded-2xl bg-blue-600 px-4 py-3 font-semibold text-white hover:bg-blue-500">Recarregar pedidos</button>
+                            <button onclick="resetProdutoForm();" class="w-full rounded-2xl bg-slate-800 px-4 py-3 font-semibold text-slate-200 hover:bg-slate-700">Resetar formulário de produto</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="abaProdutos" class="hidden rounded-3xl border border-slate-800 bg-slate-900/90 p-5 shadow-xl">
+                <div class="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+                    <div class="rounded-3xl border border-slate-800 bg-slate-950/80 p-5">
+                        <h3 class="text-lg font-bold text-white">Adicionar / Editar produto</h3>
+                        <form id="produtoForm" class="mt-5 space-y-4" onsubmit="event.preventDefault(); salvarProduto();">
+                            <div>
+                                <label class="text-sm font-semibold text-slate-300">Nome do produto</label>
+                                <input id="prodNome" type="text" required class="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-900 px-3 py-3 text-sm text-white outline-none focus:border-blue-500">
+                            </div>
+                            <div class="grid gap-3 sm:grid-cols-2">
+                                <div>
+                                    <label class="text-sm font-semibold text-slate-300">Preço (R$)</label>
+                                    <input id="prodPreco" type="number" step="0.01" required class="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-900 px-3 py-3 text-sm text-white outline-none focus:border-blue-500">
+                                </div>
+                                <div>
+                                    <label class="text-sm font-semibold text-slate-300">Múltiplo comercial</label>
+                                    <input id="prodMultiplo" type="number" min="1" value="1" required class="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-900 px-3 py-3 text-sm text-white outline-none focus:border-blue-500">
+                                </div>
+                            </div>
+                            <div class="grid gap-3 sm:grid-cols-2">
+                                <div>
+                                    <label class="text-sm font-semibold text-slate-300">Peso unitário (Kg)</label>
+                                    <input id="prodPeso" type="number" step="0.001" value="0.000" required class="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-900 px-3 py-3 text-sm text-white outline-none focus:border-blue-500">
+                                </div>
+                                <div>
+                                    <label class="text-sm font-semibold text-slate-300">URL da imagem</label>
+                                    <input id="prodFotoUrl" type="text" placeholder="https://..." class="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-900 px-3 py-3 text-sm text-white outline-none focus:border-blue-500">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="text-sm font-semibold text-slate-300">Upload de imagem</label>
+                                <input id="prodFotoArquivo" type="file" accept="image/*" class="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-900 px-3 py-3 text-sm text-slate-200 outline-none file:rounded-full file:border-0 file:bg-blue-600 file:px-3 file:py-2 file:text-sm file:text-white file:hover:bg-blue-500">
+                            </div>
+                            <div>
+                                <label class="text-sm font-semibold text-slate-300">Descrição curta</label>
+                                <input id="prodDesc" type="text" placeholder="Ex: Caixa com 12 unidades" class="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-900 px-3 py-3 text-sm text-white outline-none focus:border-blue-500">
+                            </div>
+                            <div class="flex flex-wrap gap-3">
+                                <button type="submit" class="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-bold text-slate-950 hover:bg-emerald-400">Salvar produto</button>
+                                <button type="button" onclick="resetProdutoForm();" class="rounded-2xl border border-slate-700 px-5 py-3 text-sm font-semibold text-slate-200 hover:bg-slate-800">Cancelar</button>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
+                        <h3 class="text-lg font-bold text-white">Produtos desta empresa</h3>
+                        <div id="tabelaProdutos" class="mt-5 space-y-3 text-sm text-slate-300"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="abaPedidos" class="hidden rounded-3xl border border-slate-800 bg-slate-900/90 p-5 shadow-xl">
+                <h3 class="text-lg font-bold text-white">Pedidos da distribuidora</h3>
+                <div class="mt-5 grid gap-4 xl:grid-cols-2">
+                    <div class="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
+                        <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Pedidos recentes</p>
+                        <div id="listaPedidos" class="mt-4 space-y-3 text-sm text-slate-300"></div>
+                    </div>
+                    <div class="rounded-3xl border border-slate-800 bg-slate-950/70 p-5">
+                        <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Resumo financeiro</p>
+                        <div class="mt-4 space-y-3 text-sm text-slate-300">
+                            <div class="flex justify-between"><span>Total bruto</span><span id="txtResumoFaturamento">R$ 0,00</span></div>
+                            <div class="flex justify-between"><span>Pedidos ativos</span><span id="txtResumoPedidos">0</span></div>
+                            <div class="flex justify-between"><span>Pedidos cancelados</span><span id="txtResumoCancelados">0</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const SUPABASE_URL = "https://xohkquwlmdsukxtgeqsg.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhvaGtxdXdsbWRzdWt4dGdlcXNnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1OTAyNzIsImV4cCI6MjA5ODE2NjI3Mn0.cwHkNa19Wn48MzlQINZ0CmMOLqF9-fTelsmlYD9e7zQ";
+        const STORAGE_BUCKET = 'imagens-produtos';
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+            auth: {
+                persistSession: false,
+                detectSessionInUrl: false,
+                autoRefreshToken: false
+            }
+        });
+
+        async function uploadStorageFile(bucket, path, file) {
+            const { data, error } = await supabaseClient.storage
+                .from(bucket)
+                .upload(path, file, {
+                    cacheControl: '3600',
+                    upsert: true,
+                    contentType: file.type || 'application/octet-stream'
+                });
+
+            if (error) {
+                console.error('Storage upload failed:', bucket, path, error);
+                throw error;
+            }
+
+            const { data: urlData, error: urlError } = supabaseClient.storage.from(bucket).getPublicUrl(data.path);
+            if (urlError) {
+                console.error('Failed to get public URL for storage object:', data.path, urlError);
+                throw urlError;
+            }
+            if (!urlData?.publicUrl) {
+                throw new Error('Não foi possível gerar a URL pública do arquivo enviado. Verifique as configurações de bucket do Supabase.');
+            }
+            return urlData.publicUrl;
+        }
+
+        const EMPRESAS_TABLE = 'empresas';
+        const LEGACY_CONFIG_TABLE = 'configuracoes';
+        const DEV_PANEL_PASSWORD = '126612';
+        const DEV_ACCESS_KEY = 'dev_access_granted';
+
+        let slugAtivo = null;
+        let editandoProdutoId = null;
+        let editandoDistribuidoraId = null;
+        let currentDistribuidoraSlug = null;
+
+        window.addEventListener('load', async () => {
+            const overlay = document.getElementById('passwordOverlay');
+            const passwordButton = document.getElementById('devPasswordButton');
+            const passwordInput = document.getElementById('devPasswordInput');
+
+            passwordInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') validarSenhaDev();
+            });
+
+            if (!sessionStorage.getItem(DEV_ACCESS_KEY)) {
+                overlay.classList.remove('hidden');
+                return;
+            }
+
+            overlay.classList.add('hidden');
+            iniciarPainel();
+        });
+
+        function iniciarPainel() {
+            limparSessaoAntiga();
+            document.getElementById('distSlug').addEventListener('input', handleDistribuidoraSlugInput);
+            carregarDistribuidoras();
+            const slugSalvo = localStorage.getItem('dev_selected_slug');
+            if (slugSalvo) {
+                selecionarDistribuidora(slugSalvo);
+            } else {
+                mudarAba('overview');
+            }
+        }
+
+        function validarSenhaDev() {
+            const senha = document.getElementById('devPasswordInput').value.trim();
+            const erro = document.getElementById('passwordError');
+            if (senha === DEV_PANEL_PASSWORD) {
+                sessionStorage.setItem(DEV_ACCESS_KEY, 'true');
+                document.getElementById('passwordOverlay').classList.add('hidden');
+                iniciarPainel();
+                return;
+            }
+            erro.classList.remove('hidden');
+        }
+
+        function limparSessaoAntiga() {
+            try { localStorage.removeItem('supabase.auth.token'); } catch (e) {}
+            try { supabaseClient.auth.signOut().catch(() => {}); } catch (e) {}
+        }
+
+        function handleDistribuidoraSlugInput() {
+            const slug = document.getElementById('distSlug').value.trim();
+            if (currentDistribuidoraSlug && slug !== currentDistribuidoraSlug) {
+                editandoDistribuidoraId = null;
+            }
+        }
+
+        function hasMissingEmpresasTableError(error) {
+            const message = `${error?.message || ''} ${error?.details || ''}`;
+            return /relation .*empresas.*does not exist/i.test(message) || /relation.*does not exist/i.test(message) && /empresas/i.test(message);
+        }
+
+        async function carregarDistribuidoras() {
+            const lista = document.getElementById('listaDistribuidoras');
+            lista.innerHTML = '<div class="px-4 py-6 text-sm text-slate-500">Carregando distribuidoras...</div>';
+            try {
+                let data = [];
+                let result = await supabaseClient.from(EMPRESAS_TABLE).select('*').order('nome', { ascending: true });
+
+                if (result.error && hasMissingEmpresasTableError(result.error)) {
+                    result = await supabaseClient.from(LEGACY_CONFIG_TABLE).select('*').order('nome_empresa', { ascending: true });
+                }
+
+                if (result.error) throw result.error;
+                data = result.data;
+
+                if (!data || data.length === 0) {
+                    lista.innerHTML = '<div class="px-4 py-6 text-sm text-slate-500">Nenhuma distribuidora cadastrado ainda.</div>';
+                    document.getElementById('badgeTotalDistribuidoras').innerText = '0';
+                    return;
+                }
+
+                lista.innerHTML = '';
+                document.getElementById('badgeTotalDistribuidoras').innerText = data.length.toString();
+
+                data.forEach(item => {
+                    const nome = item.nome || item.nome_empresa || item.slug;
+                    const slug = item.slug || '';
+                    const minimo = item.pedido_minimo ?? item.minimo ?? 0;
+                    const whatsapp = item.whatsapp || item.telefone || '-';
+                    const usaNfe = item.usa_nfe !== false;
+                    const usaPix = item.usa_pix !== false;
+                    const usaBoleto = item.usa_boleto !== false;
+                    const usaLogistica = item.usa_logistica !== false;
+
+                    const card = document.createElement('div');
+                    card.className = 'rounded-3xl border border-slate-800 bg-slate-900/80 p-4 shadow-sm';
+                    card.innerHTML = `
+                        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div class="min-w-0">
+                                <p class="font-semibold text-white">${nome}</p>
+                                <p class="text-xs text-slate-500">${slug}</p>
+                                <div class="mt-3 flex flex-wrap gap-2 text-[11px] text-slate-400">
+                                    <span>R$ ${parseFloat(minimo).toFixed(2)}</span>
+                                    <span>${whatsapp}</span>
+                                    <span>${usaNfe ? 'NF-e' : 'Sem NF-e'}</span>
+                                    <span>${usaPix ? 'PIX' : 'Sem PIX'}</span>
+                                    <span>${usaBoleto ? 'Boleto' : 'Sem Boleto'}</span>
+                                    <span>${usaLogistica ? 'Logística' : 'Sem Logística'}</span>
+                                </div>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <button type="button" class="rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500" data-slug="${slug}">Selecionar</button>
+                            </div>
+                        </div>`;
+
+                    card.querySelector('button')?.addEventListener('click', () => selecionarDistribuidora(slug));
+                    lista.appendChild(card);
+                });
+            } catch (err) {
+                console.error(err);
+                lista.innerHTML = `<div class="px-4 py-6 text-sm text-red-400">Erro ao carregar distribuidoras: ${err.message}</div>`;
+            }
+        }
+
+        async function selecionarDistribuidora(slug) {
+            slugAtivo = slug;
+            currentDistribuidoraSlug = slug;
+            localStorage.setItem('dev_selected_slug', slug);
+            document.getElementById('cardSlugDistribuidora').innerText = `slug: ${slug}`;
+            document.getElementById('cardNomeDistribuidora').innerText = 'Carregando...';
+            await Promise.all([carregarConfig(), carregarProdutos(), carregarPedidos()]);
+        }
+
+        async function carregarConfig() {
+            try {
+                let result = await supabaseClient.from(EMPRESAS_TABLE).select('*').eq('slug', slugAtivo).maybeSingle();
+                if (result.error && hasMissingEmpresasTableError(result.error)) {
+                    result = await supabaseClient.from(LEGACY_CONFIG_TABLE).select('*').eq('slug', slugAtivo).maybeSingle();
+                }
+                if (result.error) throw result.error;
+
+                const data = result.data;
+                if (!data) {
+                    document.getElementById('cardNomeDistribuidora').innerText = slugAtivo;
+                    document.getElementById('txtMinimoAtual').innerText = 'R$ 0,00';
+                    document.getElementById('txtWhatsappAtual').innerText = '-';
+                    document.getElementById('txtNfeAtual').innerText = 'Não';
+                    document.getElementById('txtPixAtual').innerText = 'Não';
+                    document.getElementById('txtBoletoAtual').innerText = 'Não';
+                    document.getElementById('txtLogisticaAtual').innerText = 'Não';
+                    editandoDistribuidoraId = null;
+                    resetDistribuidoraForm();
+                    return;
+                }
+
+                document.getElementById('cardNomeDistribuidora').innerText = data.nome || data.nome_empresa || slugAtivo;
+                document.getElementById('txtMinimoAtual').innerText = `R$ ${parseFloat(data.pedido_minimo || data.minimo || 0).toFixed(2)}`;
+                document.getElementById('txtWhatsappAtual').innerText = data.whatsapp || data.telefone || '-';
+                document.getElementById('txtNfeAtual').innerText = data.usa_nfe ? 'Sim' : 'Não';
+                document.getElementById('txtPixAtual').innerText = data.usa_pix ? 'Sim' : 'Não';
+                document.getElementById('txtBoletoAtual').innerText = data.usa_boleto ? 'Sim' : 'Não';
+                document.getElementById('txtLogisticaAtual').innerText = data.usa_logistica ? 'Sim' : 'Não';
+
+                editandoDistribuidoraId = data.id;
+                document.getElementById('distSlug').value = data.slug;
+                document.getElementById('distNome').value = data.nome || data.nome_empresa || '';
+                document.getElementById('distMinimo').value = data.pedido_minimo || data.minimo || '';
+                document.getElementById('distWhatsapp').value = data.whatsapp || data.telefone || '';
+                document.getElementById('distUsaNfe').checked = data.usa_nfe !== false;
+                document.getElementById('distUsaPix').checked = data.usa_pix !== false;
+                document.getElementById('distUsaBoleto').checked = data.usa_boleto !== false;
+                document.getElementById('distUsaLogistica').checked = data.usa_logistica !== false;
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function salvarDistribuidora() {
+            const slug = document.getElementById('distSlug').value.trim();
+            const nome = document.getElementById('distNome').value.trim();
+            const minimo = parseFloat(document.getElementById('distMinimo').value) || 0;
+            const whatsapp = document.getElementById('distWhatsapp').value.trim();
+            if (editandoDistribuidoraId && slug !== currentDistribuidoraSlug) {
+                editandoDistribuidoraId = null;
+                currentDistribuidoraSlug = null;
+            }
+            const payload = {
+                slug,
+                nome,
+                pedido_minimo: minimo,
+                whatsapp,
+                usa_nfe: document.getElementById('distUsaNfe').checked,
+                usa_pix: document.getElementById('distUsaPix').checked,
+                usa_boleto: document.getElementById('distUsaBoleto').checked,
+                usa_logistica: document.getElementById('distUsaLogistica').checked
+            };
+            const legacyPayload = {
+                slug,
+                nome_empresa: nome,
+                pedido_minimo: minimo,
+                whatsapp,
+                usa_nfe: document.getElementById('distUsaNfe').checked,
+                usa_pix: document.getElementById('distUsaPix').checked,
+                usa_boleto: document.getElementById('distUsaBoleto').checked,
+                usa_logistica: document.getElementById('distUsaLogistica').checked
+            };
+
+            try {
+                let result;
+                if (editandoDistribuidoraId) {
+                    result = await supabaseClient.from(EMPRESAS_TABLE).update(payload).eq('id', editandoDistribuidoraId);
+                    if (result.error && hasMissingEmpresasTableError(result.error)) {
+                        result = await supabaseClient.from(LEGACY_CONFIG_TABLE).update(legacyPayload).eq('id', editandoDistribuidoraId);
+                    }
+                    if (result.error) throw result.error;
+                    alert('Distribuidora atualizada com sucesso.');
+                } else {
+                    result = await supabaseClient.from(EMPRESAS_TABLE).insert([payload]);
+                    if (result.error && hasMissingEmpresasTableError(result.error)) {
+                        result = await supabaseClient.from(LEGACY_CONFIG_TABLE).insert([legacyPayload]);
+                    }
+                    if (result.error) throw result.error;
+                    alert('Distribuidora criada com sucesso.');
+                }
+                await carregarDistribuidoras();
+                currentDistribuidoraSlug = slug;
+                selecionarDistribuidora(slug);
+            } catch (err) {
+                alert('Erro ao salvar distribuidora: ' + err.message);
+            }
+        }
+
+        function resetDistribuidoraForm() {
+            editandoDistribuidoraId = null;
+            currentDistribuidoraSlug = null;
+            document.getElementById('distribuidoraForm').reset();
+            document.getElementById('distSlug').value = '';
+            document.getElementById('distNome').value = '';
+            document.getElementById('distMinimo').value = '';
+            document.getElementById('distWhatsapp').value = '';
+            document.getElementById('distUsaNfe').checked = true;
+            document.getElementById('distUsaPix').checked = true;
+            document.getElementById('distUsaBoleto').checked = true;
+            document.getElementById('distUsaLogistica').checked = true;
+        }
+
+        async function removerDistribuidora() {
+            if (!slugAtivo) return alert('Selecione uma distribuidora primeiro.');
+            if (!confirm(`Excluir a distribuidora "${slugAtivo}"? Isso não removerá pedidos históricos.`)) return;
+            try {
+                let result = await supabaseClient.from(EMPRESAS_TABLE).delete().eq('slug', slugAtivo);
+                if (result.error && hasMissingEmpresasTableError(result.error)) {
+                    result = await supabaseClient.from(LEGACY_CONFIG_TABLE).delete().eq('slug', slugAtivo);
+                }
+                if (result.error) throw result.error;
+                alert('Distribuidora excluída.');
+                slugAtivo = null;
+                localStorage.removeItem('dev_selected_slug');
+                await carregarDistribuidoras();
+                resetDistribuidoraForm();
+                mudarAba('overview');
+            } catch (err) {
+                alert('Erro ao excluir distribuidora: ' + err.message);
+            }
+        }
+
+        async function carregarProdutos() {
+            const container = document.getElementById('tabelaProdutos');
+            container.innerHTML = '<p class="text-sm text-slate-500">Buscando produtos...</p>';
+            try {
+                const { data, error } = await supabaseClient.from('produtos').select('*').eq('slug', slugAtivo).order('id', { ascending: false });
+                if (error) throw error;
+                if (!data || data.length === 0) {
+                    container.innerHTML = '<p class="text-sm text-slate-500">Nenhum produto cadastrado para esta distribuidora.</p>';
+                    document.getElementById('cardQuantidadeProdutos').innerText = '0';
+                    return;
+                }
+                document.getElementById('cardQuantidadeProdutos').innerText = data.length.toString();
+                container.innerHTML = '';
+                data.forEach(prod => {
+                    const produtoCard = document.createElement('div');
+                    produtoCard.className = 'rounded-3xl border border-slate-800 bg-slate-900/80 p-4 shadow-sm';
+                    produtoCard.innerHTML = `
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-[50px] min-h-[50px] overflow-hidden rounded-2xl bg-slate-800">
+                                <img src="${prod.imagem_url || 'https://images.unsplash.com/photo-1540959733332-eab4deceeaf7?auto=format&fit=crop&w=600&q=80'}" alt="Imagem do produto" class="h-full w-full object-cover">
+                            </div>
+                            <div class="flex-1 text-left">
+                                <p class="text-sm font-bold text-white">${prod.nome}</p>
+                                <p class="mt-1 text-xs text-slate-400">${prod.descricao || 'Sem descrição'}</p>
+                                <p class="mt-2 text-xs text-slate-500">Preço: R$ ${parseFloat(prod.preco || 0).toFixed(2)} • Múltiplo: ${prod.multiplo_compra || 1}</p>
+                            </div>
+                            <div class="flex flex-col gap-2">
+                                <button onclick='editarProduto(${prod.id})' class="rounded-2xl bg-blue-600 px-3 py-2 text-[11px] font-semibold text-white hover:bg-blue-500">Editar</button>
+                                <button onclick='excluirProduto(${prod.id})' class="rounded-2xl bg-red-600 px-3 py-2 text-[11px] font-semibold text-white hover:bg-red-500">Excluir</button>
+                            </div>
+                        </div>`;
+                    container.appendChild(produtoCard);
+                });
+            } catch (err) {
+                container.innerHTML = `<p class="text-sm text-red-400">Erro ao carregar produtos: ${err.message}</p>`;
+            }
+        }
+
+        async function carregarPedidos() {
+            const lista = document.getElementById('listaPedidos');
+            lista.innerHTML = '<p class="text-sm text-slate-500">Buscando pedidos...</p>';
+            try {
+                const { data, error } = await supabaseClient.from('pedidos').select('*').eq('slug', slugAtivo).order('id', { ascending: false });
+                if (error) throw error;
+                if (!data || data.length === 0) {
+                    lista.innerHTML = '<p class="text-sm text-slate-500">Nenhum pedido encontrado para esta distribuidora.</p>';
+                    document.getElementById('cardQuantidadePedidos').innerText = '0';
+                    document.getElementById('cardFaturamentoTotal').innerText = 'R$ 0,00';
+                    document.getElementById('txtResumoFaturamento').innerText = 'R$ 0,00';
+                    document.getElementById('txtResumoPedidos').innerText = '0';
+                    document.getElementById('txtResumoCancelados').innerText = '0';
+                    return;
+                }
+                const totalFaturamento = data.reduce((sum, pedido) => sum + parseFloat(pedido.total || 0), 0);
+                const cancelados = data.filter(p => p.status === 'Cancelado').length;
+                document.getElementById('cardQuantidadePedidos').innerText = data.length.toString();
+                document.getElementById('cardFaturamentoTotal').innerText = `R$ ${totalFaturamento.toFixed(2)}`;
+                document.getElementById('txtResumoFaturamento').innerText = `R$ ${totalFaturamento.toFixed(2)}`;
+                document.getElementById('txtResumoPedidos').innerText = data.length.toString();
+                document.getElementById('txtResumoCancelados').innerText = cancelados.toString();
+
+                lista.innerHTML = '';
+                data.slice(0, 8).forEach(pedido => {
+                    const pedidoDiv = document.createElement('div');
+                    pedidoDiv.className = 'rounded-3xl border border-slate-800 bg-slate-950/70 p-4 shadow-sm';
+                    pedidoDiv.innerHTML = `
+                        <div class="flex items-center justify-between gap-3">
+                            <div>
+                                <p class="text-sm font-bold text-white">ORDEM #${pedido.id}</p>
+                                <p class="mt-1 text-xs text-slate-400">${pedido.cliente_nome || 'Cliente não informado'}</p>
+                            </div>
+                            <span class="rounded-full bg-slate-800 px-3 py-1 text-[11px] text-slate-300">${pedido.status || 'Pendente'}</span>
+                        </div>
+                        <div class="mt-3 text-xs text-slate-400">
+                            <div>Valor: R$ ${parseFloat(pedido.total || 0).toFixed(2)}</div>
+                            <div>Peso total: ${parseFloat(pedido.peso_total_kg || 0).toFixed(3)} Kg</div>
+                        </div>`;
+                    lista.appendChild(pedidoDiv);
+                });
+            } catch (err) {
+                lista.innerHTML = `<p class="text-sm text-red-400">Erro ao carregar pedidos: ${err.message}</p>`;
+            }
+        }
+
+        async function salvarProduto() {
+            const nome = document.getElementById('prodNome').value.trim();
+            const preco = parseFloat(document.getElementById('prodPreco').value) || 0;
+            const multiplo = parseInt(document.getElementById('prodMultiplo').value) || 1;
+            const peso = parseFloat(document.getElementById('prodPeso').value) || 0;
+            const desc = document.getElementById('prodDesc').value.trim();
+            let imagemUrl = document.getElementById('prodFotoUrl').value.trim();
+            const arquivo = document.getElementById('prodFotoArquivo').files[0];
+
+            if (!slugAtivo) return alert('Selecione uma distribuidora antes de salvar o produto.');
+            if (arquivo) {
+                try {
+                    imagemUrl = await uploadImagemProduto(arquivo);
+                } catch (err) {
+                    alert('Upload falhou: ' + err.message + '. O produto será salvo com o URL atual.');
+                }
+            }
+
+            const payload = {
+                nome,
+                preco,
+                multiplo_compra: multiplo,
+                peso_kg: peso,
+                descricao: desc,
+                imagem_url: imagemUrl,
+                slug: slugAtivo
+            };
+
+            try {
+                if (editandoProdutoId) {
+                    const { error } = await supabaseClient.from('produtos').update(payload).eq('id', editandoProdutoId);
+                    if (error) throw error;
+                    alert('Produto atualizado com sucesso.');
+                } else {
+                    const { error } = await supabaseClient.from('produtos').insert([payload]);
+                    if (error) throw error;
+                    alert('Produto criado com sucesso.');
+                }
+                resetProdutoForm();
+                await carregarProdutos();
+            } catch (err) {
+                alert('Erro ao salvar produto: ' + err.message);
+            }
+        }
+
+        async function uploadImagemProduto(arquivo) {
+            const nomeArquivo = `${Date.now()}-${arquivo.name.replace(/\s+/g, '_')}`;
+            const caminho = `produtos/${slugAtivo}/${nomeArquivo}`;
+            return await uploadStorageFile(STORAGE_BUCKET, caminho, arquivo);
+        }
+
+        function editarProduto(produtoId) {
+            return Promise.resolve().then(async () => {
+                try {
+                    const { data, error } = await supabaseClient.from('produtos').select('*').eq('id', produtoId).single();
+                    if (error) throw error;
+                    editandoProdutoId = produtoId;
+                    document.getElementById('prodNome').value = data.nome || '';
+                    document.getElementById('prodPreco').value = data.preco || '';
+                    document.getElementById('prodMultiplo').value = data.multiplo_compra || 1;
+                    document.getElementById('prodPeso').value = data.peso_kg || 0;
+                    document.getElementById('prodDesc').value = data.descricao || '';
+                    document.getElementById('prodFotoUrl').value = data.imagem_url || '';
+                    document.getElementById('prodFotoArquivo').value = '';
+                    document.getElementById('btnSalvarProduto')?.setAttribute('data-editando', 'true');
+                } catch (err) {
+                    alert('Erro ao carregar produto para edição: ' + err.message);
+                }
+            });
+        }
+
+        async function excluirProduto(produtoId) {
+            if (!confirm('Deseja excluir este produto?')) return;
+            try {
+                const { error } = await supabaseClient.from('produtos').delete().eq('id', produtoId);
+                if (error) throw error;
+                alert('Produto excluído.');
+                await carregarProdutos();
+            } catch (err) {
+                alert('Erro ao excluir produto: ' + err.message);
+            }
+        }
+
+        function resetProdutoForm() {
+            editandoProdutoId = null;
+            document.getElementById('produtoForm').reset();
+            document.getElementById('prodFotoUrl').value = '';
+            document.getElementById('prodFotoArquivo').value = '';
+        }
+
+        function mudarAba(aba) {
+            const abas = ['overview', 'produtos', 'pedidos'];
+            abas.forEach(item => {
+                document.getElementById(`aba${capitalize(item)}`).classList.toggle('hidden', item !== aba);
+                document.getElementById(`btnAba${capitalize(item)}`).classList.toggle('bg-blue-600', item === aba);
+                document.getElementById(`btnAba${capitalize(item)}`).classList.toggle('text-white', item === aba);
+                document.getElementById(`btnAba${capitalize(item)}`).classList.toggle('bg-slate-800', item !== aba);
+                document.getElementById(`btnAba${capitalize(item)}`).classList.toggle('text-slate-200', item !== aba);
+            });
+        }
+
+        function capitalize(value) {
+            return value.charAt(0).toUpperCase() + value.slice(1);
+        }
+    </script>
+</body>
+</html>
